@@ -68,7 +68,7 @@ instance ToHtml ResourceRule where
 instance ToHtml ResourceExample where
    toHtml (RExample ex dif a) = 
       toHtml (prettyPrinter ex a ++ " " ++ show dif ++ " ") <>
-      p_ (a_ [href_ (pack $ show $ stateUri $ emptyState ex a)] (toHtml "start"))
+      p_ (a_ [href_ (pack $ ("/" ++) $ show $ stateUri $ emptyState ex a)] (toHtml "start"))
    toHtmlRaw = toHtml 
 
 instance ToHtml ResourceState where
@@ -77,7 +77,7 @@ instance ToHtml ResourceState where
       case allfirsts st of
          Left msg -> mempty
          Right xs -> ul_ (mconcat 
-            [ li_ (a_ [href_ (pack $ show (stateUri newst))] (toHtml (showId r)))
+            [ li_ (a_ [href_ (pack $ ("/" ++) $ show (stateUri newst))] (toHtml (showId r)))
             | ((r, _, _), newst) <- xs, let ex = exercise st, let a = stateTerm newst ])
    toHtmlRaw = toHtml
 
@@ -103,13 +103,6 @@ type IdeasAPI =
    
 type ExerciseAPI = Capture "exerciseid" Id :>
    (    Get '[JSON, HTML] ResourceExercise
-   :<|> "examples" :> Get '[JSON, HTML] [ResourceExample]
-   :<|> "strategy" :> Get '[JSON] ResourceStrategy
-   :<|> "rules" :> Get '[JSON, HTML] [ResourceRule]
-   :<|> "state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[HTML] ResourceState
-   )
-   
-type SmallAPI = (    Get '[JSON, HTML] ResourceExercise
    :<|> "examples" :> Get '[JSON, HTML] [ResourceExample]
    :<|> "strategy" :> Get '[JSON] ResourceStrategy
    :<|> "rules" :> Get '[JSON, HTML] [ResourceRule]
@@ -148,9 +141,6 @@ exerciseServer dr s =
 ideasAPI :: Proxy IdeasAPI
 ideasAPI = Proxy
 
-smallAPI :: Proxy SmallAPI
-smallAPI = Proxy
-
 type ExerciseProxy a = Proxy (Capture "exerciseid" Id :> a)
 
 exerciseAPI :: ExerciseProxy (Get '[HTML] ResourceExercise)
@@ -165,7 +155,7 @@ strategyAPI = Proxy
 rulesAPI :: ExerciseProxy ("rules" :> Get '[HTML] [ResourceRule])
 rulesAPI = Proxy
 
-stateAPI :: Proxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[HTML] ResourceState)
+stateAPI :: ExerciseProxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[HTML] ResourceState)
 stateAPI = Proxy
 
 exerciseUri, examplesUri, strategyUri, rulesUri :: Exercise a -> URI
@@ -175,7 +165,7 @@ strategyUri ex = safeLink ideasAPI strategyAPI (getId ex)
 rulesUri    ex = safeLink ideasAPI rulesAPI    (getId ex)
 
 stateUri :: State a -> URI
-stateUri st = safeLink smallAPI stateAPI (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
+stateUri st = safeLink ideasAPI stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
 
 restfulMain :: DomainReasoner -> IO ()
 restfulMain dr = run 8081 (serve ideasAPI (ideasServer dr))
