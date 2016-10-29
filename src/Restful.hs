@@ -2,8 +2,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Restful (restfulMain) where
 
@@ -22,11 +21,14 @@ import Servant.HTML.Lucid
 import Servant.Docs
 import Servant.JS
 import Lucid
+import Links
+import ResourceExercise
+
+links :: Links
+links = Links examplesUri strategyUri rulesUri
 
 -----------------------------------------------------------
 -- Resources
-
-data ResourceExercise = forall a . RExercise (Exercise a)
 
 data ResourceExample = forall a . RExample (Exercise a) Difficulty a
 
@@ -38,9 +40,6 @@ data ResourceState = forall a . RState (State a)
 
 instance ToJSON DomainReasoner where
    toJSON dr = String (pack (show (getId dr)))
-
-instance ToJSON ResourceExercise where
-   toJSON (RExercise ex) = String (pack (show (getId ex)))
 
 instance ToJSON ResourceExample where
    toJSON (RExample ex dif a) = String (pack (prettyPrinter ex a ++ " " ++ show dif))
@@ -61,17 +60,9 @@ instance ToHtml DomainReasoner where
         li_ $ a_ [href_ (exerciseUri ex)] (toHtml $ show $ getId ex)
    toHtmlRaw = toHtml
 
-instance ToHtml ResourceExercise where
-   toHtml (RExercise ex) = do
-      h1_ $ toHtml $ "Exercise " ++ showId ex
-      p_ $ a_ [href_ (examplesUri ex)] (toHtml "examples")
-      p_ $ a_ [href_ (strategyUri ex)] (toHtml "strategy")
-      p_ $ a_ [href_ (rulesUri ex)]    (toHtml "rules")
-   toHtmlRaw = toHtml
-
 instance ToHtml ResourceRule where
    toHtml (RRule r) = toHtml (showId r)
-   toHtmlRaw = toHtml 
+   toHtmlRaw = toHtml
 
 instance ToHtml ResourceExample where
    toHtml (RExample ex dif a) = 
@@ -96,21 +87,17 @@ instance ToHtml [ResourceRule] where
 instance ToHtml [ResourceExample] where
    toHtml xs = ul_ (mconcat (map (li_ . toHtml) xs))
    toHtmlRaw = toHtml
-
-instance ToHtml [ResourceExercise] where
-   toHtml xs = ul_ (mconcat (map (li_ . toHtml) xs))
-   toHtmlRaw = toHtml
   
 -----------------------------------------------------------
 -- API
 
 type IdeasAPI = 
         Get '[JSON, HTML] DomainReasoner
-   :<|> "exercises" :> Get '[JSON, HTML] [ResourceExercise]
+   :<|> "exercises" :> GetExercises
    :<|> ExerciseAPI
    
 type ExerciseAPI = Capture "exerciseid" Id :>
-   (    Get '[JSON, HTML] ResourceExercise
+   (    GetExercise
    :<|> "examples" :> Get '[JSON, HTML] [ResourceExample]
    :<|> "strategy" :> Get '[JSON] ResourceStrategy
    :<|> "rules" :> Get '[JSON, HTML] [ResourceRule]
@@ -123,7 +110,7 @@ type ExerciseAPI = Capture "exerciseid" Id :>
 ideasServer :: DomainReasoner -> Server IdeasAPI
 ideasServer dr =   
         return dr
-   :<|> return [ RExercise ex | Some ex <- exercises dr ]
+   :<|> return [ RExercise links ex | Some ex <- exercises dr ]
    :<|> exerciseServer dr
    
 exerciseServer :: DomainReasoner -> Server ExerciseAPI
@@ -131,7 +118,7 @@ exerciseServer dr s =
    case findExercise dr s of
       Nothing -> error ("exercise not found: " ++ showId s)
       Just (Some ex) -> 
-              return (RExercise ex) 
+              return (RExercise links ex) 
          :<|> return [ RExample ex dif a | (dif, a) <- examples ex ]
          :<|> return (RStrategy (strategy ex)) 
          :<|> return [ RRule r | r <- ruleset ex ]
@@ -151,7 +138,7 @@ ideasAPI = Proxy
 
 type ExerciseProxy a = Proxy (Capture "exerciseid" Id :> a)
 
-exerciseAPI :: ExerciseProxy (Get '[HTML] ResourceExercise)
+exerciseAPI :: ExerciseProxy GetExercise
 exerciseAPI = Proxy
 
 examplesAPI :: ExerciseProxy ("examples" :> Get '[HTML] [ResourceExample])
@@ -218,9 +205,6 @@ instance ToSample ResourceStrategy where
     toSamples _ = []
     
 instance ToSample ResourceExample where
-    toSamples _ = []
-    
-instance ToSample ResourceExercise where
     toSamples _ = []
     
 instance ToParam (QueryParam "prefix" String) where
