@@ -2,12 +2,15 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 
 module Restful (restfulMain) where
 
 import Control.Monad
 import Data.Aeson.Types
-import Data.Text (unpack, pack)
+import Data.Text (unpack, pack, Text)
+import qualified Data.Text.IO as T (writeFile)
 import Servant
 import Network.Wai.Handler.Warp (run)
 import Ideas.Common.Library
@@ -16,6 +19,8 @@ import Ideas.Service.DomainReasoner
 import Ideas.Service.BasicServices
 import Ideas.Service.State
 import Servant.HTML.Lucid
+import Servant.Docs
+import Servant.JS
 import Lucid
 
 -----------------------------------------------------------
@@ -46,19 +51,22 @@ instance ToJSON ResourceStrategy where
 instance ToJSON ResourceRule where
    toJSON (RRule r) = String (pack (show (getId r)))
 
+instance ToJSON ResourceState where
+   toJSON (RState st) = String (pack "resource state")
+
 instance ToHtml DomainReasoner where
    toHtml dr = do 
       h1_ $ toHtml $ "Domain Reasoner " ++ showId dr
       ul_ $ forM_ (exercises dr) $ \(Some ex) -> 
-        li_ $ a_ [href_ (pack $ show $ exerciseUri ex)] (toHtml $ show $ getId ex)
+        li_ $ a_ [href_ (exerciseUri ex)] (toHtml $ show $ getId ex)
    toHtmlRaw = toHtml
 
 instance ToHtml ResourceExercise where
    toHtml (RExercise ex) = do
       h1_ $ toHtml $ "Exercise " ++ showId ex
-      p_ $ a_ [href_ (pack $ show $ examplesUri ex)] (toHtml "examples")
-      p_ $ a_ [href_ (pack $ show $ strategyUri ex)] (toHtml "strategy")
-      p_ $ a_ [href_ (pack $ show $ rulesUri ex)]    (toHtml "rules")
+      p_ $ a_ [href_ (examplesUri ex)] (toHtml "examples")
+      p_ $ a_ [href_ (strategyUri ex)] (toHtml "strategy")
+      p_ $ a_ [href_ (rulesUri ex)]    (toHtml "rules")
    toHtmlRaw = toHtml
 
 instance ToHtml ResourceRule where
@@ -68,7 +76,7 @@ instance ToHtml ResourceRule where
 instance ToHtml ResourceExample where
    toHtml (RExample ex dif a) = 
       toHtml (prettyPrinter ex a ++ " " ++ show dif ++ " ") <>
-      p_ (a_ [href_ (pack $ ("/" ++) $ show $ stateUri $ emptyState ex a)] (toHtml "start"))
+      p_ (a_ [href_ (stateUri $ emptyState ex a)] (toHtml "start"))
    toHtmlRaw = toHtml 
 
 instance ToHtml ResourceState where
@@ -77,7 +85,7 @@ instance ToHtml ResourceState where
       case allfirsts st of
          Left msg -> mempty
          Right xs -> ul_ (mconcat 
-            [ li_ (a_ [href_ (pack $ ("/" ++) $ show (stateUri newst))] (toHtml (showId r)))
+            [ li_ (a_ [href_ (stateUri newst)] (toHtml (showId r)))
             | ((r, _, _), newst) <- xs, let ex = exercise st, let a = stateTerm newst ])
    toHtmlRaw = toHtml
 
@@ -106,7 +114,7 @@ type ExerciseAPI = Capture "exerciseid" Id :>
    :<|> "examples" :> Get '[JSON, HTML] [ResourceExample]
    :<|> "strategy" :> Get '[JSON] ResourceStrategy
    :<|> "rules" :> Get '[JSON, HTML] [ResourceRule]
-   :<|> "state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[HTML] ResourceState
+   :<|> "state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[JSON, HTML] ResourceState
    )
 
 -----------------------------------------------------------
@@ -158,14 +166,20 @@ rulesAPI = Proxy
 stateAPI :: ExerciseProxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> Get '[HTML] ResourceState)
 stateAPI = Proxy
 
-exerciseUri, examplesUri, strategyUri, rulesUri :: Exercise a -> URI
-exerciseUri ex = safeLink ideasAPI exerciseAPI (getId ex)
-examplesUri ex = safeLink ideasAPI examplesAPI (getId ex)
-strategyUri ex = safeLink ideasAPI strategyAPI (getId ex)
-rulesUri    ex = safeLink ideasAPI rulesAPI    (getId ex)
+ideasLink :: (IsElem a IdeasAPI, HasLink a) => Proxy a -> MkLink a
+ideasLink = safeLink ideasAPI
 
-stateUri :: State a -> URI
-stateUri st = safeLink ideasAPI stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
+showUri :: URI -> Text
+showUri x = pack ("/" ++ show x)
+
+exerciseUri, examplesUri, strategyUri, rulesUri :: Exercise a -> Text
+exerciseUri ex = showUri $ ideasLink exerciseAPI (getId ex)
+examplesUri ex = showUri $ ideasLink examplesAPI (getId ex)
+strategyUri ex = showUri $ ideasLink strategyAPI (getId ex)
+rulesUri    ex = showUri $ ideasLink rulesAPI    (getId ex)
+
+stateUri :: State a -> Text
+stateUri st = pack $ "/" ++ show (safeLink ideasAPI stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st))))
 
 restfulMain :: DomainReasoner -> IO ()
 restfulMain dr = run 8081 (serve ideasAPI (ideasServer dr))
@@ -190,3 +204,37 @@ instance MimeRender IH DomainReasoner where
   mimeRender _ dr = fromString $ MyHTML.showHTML $ MyHTML.htmlPage "Hello" $ MyHTML.h1 "world"
   
 -}
+
+instance ToSample DomainReasoner where
+    toSamples _ = []
+    
+instance ToSample ResourceState where
+    toSamples _ = []
+    
+instance ToSample ResourceRule where
+    toSamples _ = []
+    
+instance ToSample ResourceStrategy where
+    toSamples _ = []
+    
+instance ToSample ResourceExample where
+    toSamples _ = []
+    
+instance ToSample ResourceExercise where
+    toSamples _ = []
+    
+instance ToParam (QueryParam "prefix" String) where
+    toParam _ =
+       DocQueryParam "prefix" [] "strategy prefix" Normal
+    
+instance ToParam (QueryParam "term" String) where
+    toParam _ =
+       DocQueryParam "term" [] "current term" Normal
+    
+instance ToCapture (Capture "exerciseid" Id) where
+    toCapture _ = 
+       DocCapture "exerciseid" "exercise identitifer" 
+       
+writeMe = writeFile "doc.md" $ markdown $ docs ideasAPI
+
+go = T.writeFile "out.js" $ jsForAPI ideasAPI jquery
