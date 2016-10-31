@@ -5,7 +5,7 @@ import Ideas.Common.Utils (Some(..))
 import qualified Domain.Logic as Logic
 import qualified Domain.Logic.Consequence as Logic
 import qualified Domain.Logic.Proofs as Logic
-import Restful
+import Ideas.Rest
 import Ideas.Service.DomainReasoner
 import Ideas.Service.ServiceList
 import Ideas.Service.Types (Service)

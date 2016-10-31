@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Restful (restfulMain) where
+module Ideas.Rest (restfulMain) where
 
 import Control.Monad
 import Data.Aeson.Types
@@ -21,8 +21,8 @@ import Servant.HTML.Lucid
 import Servant.Docs
 import Servant.JS
 import Lucid
-import Links
-import ResourceExercise
+import Ideas.Rest.Links
+import Ideas.Rest.Resource.Exercise
 
 links :: Links
 links = Links examplesUri strategyUri rulesUri

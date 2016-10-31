@@ -23,4 +23,6 @@ Executable ideas-rest
     parsec == 3.1.9
                      
   Other-modules:
-    Restful
+    Ideas.Rest
+    Ideas.Rest.Links
+    Ideas.Rest.Resource.Exercise

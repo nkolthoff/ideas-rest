@@ -3,13 +3,13 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
 
-module ResourceExercise where
+module Ideas.Rest.Resource.Exercise where
 
 import Ideas.Common.Library
 import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
-import Links
+import Ideas.Rest.Links
 import Servant.Docs
 import Servant
 import Servant.HTML.Lucid

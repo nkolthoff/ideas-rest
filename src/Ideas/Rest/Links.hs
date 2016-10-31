@@ -1,6 +1,6 @@
 {-# LANGUAGE RankNTypes #-}
 
-module Links where
+module Ideas.Rest.Links where
 
 import Data.Text
 import Ideas.Common.Library
