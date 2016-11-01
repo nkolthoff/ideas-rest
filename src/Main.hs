@@ -1,5 +1,6 @@
 module Main (main) where
 
+import qualified Data.Text.IO as T
 import Ideas.Common.Library
 import Ideas.Common.Utils (Some(..))
 import qualified Domain.Logic as Logic
@@ -11,7 +12,10 @@ import Ideas.Service.ServiceList
 import Ideas.Service.Types (Service)
 
 main :: IO ()
-main = restfulMain ideasLogic
+main = do
+   writeFile "docs/ideas-api.md" ideasDocs
+   T.writeFile "docs/ideas-api.js" ideasJS
+   restfulMain ideasLogic
 
 -----------------------------------------------------------------
 

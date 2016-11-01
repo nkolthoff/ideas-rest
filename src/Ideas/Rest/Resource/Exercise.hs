@@ -1,7 +1,7 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Ideas.Rest.Resource.Exercise where
 
@@ -17,7 +17,7 @@ import Servant.HTML.Lucid
 data ResourceExercise = forall a . RExercise Links (Exercise a)
 
 type GetExercise  = Get '[JSON, HTML] ResourceExercise
-type GetExercises = Get '[JSON, HTML] [ResourceExercise]
+type GetExercises = "exercises" :> Get '[JSON, HTML] [ResourceExercise]
 
 instance ToJSON ResourceExercise where
    toJSON (RExercise _ ex) = String (pack (show (getId ex)))
