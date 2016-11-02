@@ -9,6 +9,7 @@ import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
 import Ideas.Rest.Links
+import Ideas.Rest.HTML.Page
 import Ideas.Service.State
 import Ideas.Service.BasicServices
 import Servant.Docs
@@ -23,7 +24,7 @@ instance ToJSON ResourceState where
    toJSON (RState _ _) = String (pack "resource state")
    
 instance ToHtml ResourceState where
-   toHtml (RState links st) = 
+   toHtml (RState links st) = makePage $
       toHtml (show st) <>
       case allfirsts st of
          Left _ -> mempty

@@ -6,6 +6,7 @@
 module Ideas.Rest.Resource.Rule where
 
 import Ideas.Common.Library
+import Ideas.Rest.HTML.Page
 import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
@@ -21,12 +22,15 @@ instance ToJSON ResourceRule where
    toJSON (RRule r) = String (pack (show (getId r)))
    
 instance ToHtml ResourceRule where
-   toHtml (RRule r) = toHtml (showId r)
+   toHtml x = makePage (ruleHtml x)
    toHtmlRaw = toHtml
    
 instance ToHtml [ResourceRule] where
-   toHtml xs = ul_ (mconcat (map (li_ . toHtml) xs))
+   toHtml xs = makePage $ ul_ (mconcat (map (li_ . ruleHtml) xs))
    toHtmlRaw = toHtml
+   
+ruleHtml :: Monad m => ResourceRule -> HtmlT m ()
+ruleHtml (RRule r) = toHtml (showId r)
    
 instance ToSample ResourceRule where
     toSamples _ = []

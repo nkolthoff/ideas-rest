@@ -6,6 +6,7 @@
 module Ideas.Rest.Resource.Exercise where
 
 import Ideas.Common.Library
+import Ideas.Rest.HTML.Page
 import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
@@ -23,16 +24,19 @@ instance ToJSON ResourceExercise where
    toJSON (RExercise _ ex) = String (pack (show (getId ex)))
    
 instance ToHtml ResourceExercise where
-   toHtml (RExercise links ex) = do
-      h1_ $ toHtml $ "Exercise " ++ showId ex
-      p_ $ a_ [href_ (linkExamples links ex)] (toHtml "examples")
-      p_ $ a_ [href_ (linkStrategy links ex)] (toHtml "strategy")
-      p_ $ a_ [href_ (linkRules links ex)]    (toHtml "rules")
+   toHtml x = makePage $ exerciseHtml x
    toHtmlRaw = toHtml
    
 instance ToHtml [ResourceExercise] where
-   toHtml xs = ul_ (mconcat (map (li_ . toHtml) xs))
+   toHtml xs = makePage $ ul_ (mconcat (map (li_ . exerciseHtml) xs))
    toHtmlRaw = toHtml
+   
+exerciseHtml :: Monad m => ResourceExercise -> HtmlT m ()
+exerciseHtml (RExercise links ex) = do
+   h1_ $ toHtml $ "Exercise " ++ showId ex
+   p_ $ a_ [href_ (linkExamples links ex)] (toHtml "examples")
+   p_ $ a_ [href_ (linkStrategy links ex)] (toHtml "strategy")
+   p_ $ a_ [href_ (linkRules links ex)]    (toHtml "rules")
    
 instance ToSample ResourceExercise where
     toSamples _ = []
