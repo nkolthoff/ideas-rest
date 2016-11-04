@@ -26,7 +26,7 @@ instance ToJSON ResourceDomainReasoner where
    toJSON (RDomainReasoner _ dr) = String (pack (show (getId dr)))
    
 instance ToHtml ResourceDomainReasoner where
-   toHtml (RDomainReasoner links dr) = makePage $ do
+   toHtml (RDomainReasoner links dr) = makePage links Nothing $ do
       h1_ [class_ "w3-text-teal"] $ 
          toHtml $ "Domain Reasoner " ++ showId dr
       ul_ $ forM_ (exercises dr) $ \(Some ex) -> 

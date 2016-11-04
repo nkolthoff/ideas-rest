@@ -1,15 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Ideas.Rest.HTML.Page (makePage) where
 
-import Control.Monad
 import Lucid
 import Data.Text
+import Ideas.Rest.Links
+import Ideas.Common.Library
 
-makePage :: Monad m => HtmlT m () -> HtmlT m ()
-makePage content = do
+makePage :: Monad m => Links -> Maybe (Exercise a) -> HtmlT m () -> HtmlT m ()
+makePage links mex content = do
    doctype_
    html_ $ do
-      title_ "Hello world"
+      title_ "Title"
       meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
       stylesheet "http://www.w3schools.com/lib/w3.css"
       stylesheet "http://www.w3schools.com/lib/w3-theme-black.css"
@@ -17,8 +18,10 @@ makePage content = do
       stylesheet "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css"
       style_ styleTxt
       body_ $ do
-         navBar
-         sidenav
+         navBar links
+         case mex of
+            Just ex -> sidenav links ex
+            Nothing -> return ()
          overlayEffect
          div_ [class_ "w3-main", style_ "margin-left:250px"] $ do
             div_ [class_ "w3-row w3-padding-64"] content
@@ -34,27 +37,31 @@ styleTxt =
    \    padding-bottom: 12px;\n\
    \}"
    
-navBar :: Monad m => HtmlT m ()
-navBar = div_ [class_ "w3-top"] $ do
+navBar :: Monad m => Links -> HtmlT m ()
+navBar links = div_ [class_ "w3-top"] $ do
    ul_ [class_ "w3-navbar w3-theme w3-top w3-left-align w3-large"] $ do
       li_ [class_ "w3-opennav w3-right w3-hide-large"] $
          a_ [class_ "w3-hover-white w3-large w3-theme-l1", href_ "javascript:void(0)", onclick_ "w3_open()"] $
             i_ [class_ "fa fa-bars"] $ mempty
-      li_ $ a_ [href_ "#", class_ "w3-theme-l1"] "Logo"
+      li_ $ a_ [href_ "http://ideas.cs.uu.nl/", class_ "w3-theme-l1"] "Ideas"
       li_ [class_ "w3-hide-small"] $
-         a_ [href_ "#", class_ "w3-hover-white"] $
-            "Contact"
-      li_ [class_ "w3-hide-medium w3-hide-small"] $
-         a_ [href_ "#", class_ "w3-hover-white"] $
-            "Partners"
+         a_ [href_ (linkTop links), class_ "w3-hover-white"] $ do
+            i_ [class_ "fa fa-home w3-large"] mempty
+            " Domain Reasoner"
+      li_ [class_ "w3-hide-small"] $
+         a_ [href_ (linkExercises links), class_ "w3-hover-white"] "Exercises"
+      li_ [class_ "w3-hide-small"] $
+         a_ [href_ (linkServices links), class_ "w3-hover-white"] "Services"
 
-sidenav :: Monad m => HtmlT m ()
-sidenav = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-index:3;width:250px;margin-top:51px;", id_ "mySidenav"] $ do
+sidenav :: Monad m => Links -> Exercise a -> HtmlT m ()
+sidenav links ex = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-index:3;width:250px;margin-top:51px;", id_ "mySidenav"] $ do
    a_ [href_ "javascript:void(0)", onclick_ "w3_close()", class_ "w3-right w3-xlarge w3-padding-large w3-hover-black w3-hide-large", title_ "close menu"] $
       i_ [class_ "fa fa-remove"] mempty
-   h4_ $ b_ "Menu"
-   replicateM_ 4 $ 
-      a_ [href_ "#", class_ "w3-hover-black"] "Link"
+   h4_ $ b_ "Exercise"
+   a_ [href_ (linkExercise links ex), class_ "w3-hover-black"] "Information"
+   a_ [href_ (linkExamples links ex), class_ "w3-hover-black"] "Examples"
+   a_ [href_ (linkRules links ex), class_ "w3-hover-black"] "Rules"
+   a_ [href_ (linkStrategy links ex), class_ "w3-hover-black"] "Strategy"
 
 footer :: Monad m => HtmlT m ()
 footer = footer_ [id_ "myFooter"] $ do

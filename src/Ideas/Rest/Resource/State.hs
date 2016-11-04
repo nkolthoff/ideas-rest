@@ -24,7 +24,7 @@ instance ToJSON ResourceState where
    toJSON (RState _ _) = String (pack "resource state")
    
 instance ToHtml ResourceState where
-   toHtml (RState links st) = makePage $
+   toHtml (RState links st) = makePage links (Just (exercise st)) $
       toHtml (show st) <>
       case allfirsts st of
          Left _ -> mempty

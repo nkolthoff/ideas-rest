@@ -7,6 +7,7 @@ module Ideas.Rest.Resource.Rule where
 
 import Ideas.Common.Library
 import Ideas.Rest.HTML.Page
+import Ideas.Rest.Links
 import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
@@ -14,23 +15,33 @@ import Servant.Docs
 import Servant
 import Servant.HTML.Lucid
 
-data ResourceRule = forall a . RRule (Rule a)
+data ResourceRules = forall a . RRules Links [Rule a]
 
-type GetRules = "rules" :> Get '[JSON, HTML] [ResourceRule]
+data ResourceRule = forall a . RRule Links (Rule a)
 
+type GetRules = "rules" :> Get '[JSON, HTML] ResourceRules
+
+instance ToJSON ResourceRules where
+   toJSON (RRules links rs) = 
+      toJSON [ RRule links r | r <- rs ]
+   
 instance ToJSON ResourceRule where
-   toJSON (RRule r) = String (pack (show (getId r)))
+   toJSON (RRule _ r) = String (pack (show (getId r)))
    
 instance ToHtml ResourceRule where
-   toHtml x = makePage (ruleHtml x)
+   toHtml (RRule links r) = makePage links Nothing (ruleHtml r)
    toHtmlRaw = toHtml
    
-instance ToHtml [ResourceRule] where
-   toHtml xs = makePage $ ul_ (mconcat (map (li_ . ruleHtml) xs))
+instance ToHtml ResourceRules where
+   toHtml (RRules links rs) = makePage links Nothing $ 
+      ul_ $ mconcat [ li_ $ ruleHtml r | r <- rs ]
    toHtmlRaw = toHtml
    
-ruleHtml :: Monad m => ResourceRule -> HtmlT m ()
-ruleHtml (RRule r) = toHtml (showId r)
-   
+ruleHtml :: Monad m => Rule a -> HtmlT m ()
+ruleHtml r = toHtml (showId r)
+
+instance ToSample ResourceRules where
+    toSamples _ = []
+
 instance ToSample ResourceRule where
     toSamples _ = []

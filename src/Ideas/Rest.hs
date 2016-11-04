@@ -7,6 +7,7 @@
 
 module Ideas.Rest (restfulMain, ideasDocs, ideasJS) where
 
+import Data.IORef
 import Data.Text (unpack, pack, Text)
 import Servant
 import Network.Wai.Handler.Warp (run)
@@ -16,6 +17,7 @@ import Ideas.Service.State
 import Servant.Docs
 import Servant.JS
 import Ideas.Rest.Links
+import Ideas.Rest.Resource.DomainReasoner
 import Ideas.Rest.Resource.Exercise
 import Ideas.Rest.Resource.Example
 import Ideas.Rest.Resource.State
@@ -30,16 +32,22 @@ type ExerciseProxy a = Proxy (Capture "exerciseid" Id :> a)
 
 links :: Links
 links = Links 
-   { linkExercise = makeLink exerciseAPI . getId
-   , linkExamples = makeLink examplesAPI . getId
-   , linkStrategy = makeLink strategyAPI . getId
-   , linkRules    = makeLink rulesAPI . getId
-   , linkState    = \st -> showUri $ ideasLink stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
+   { linkTop       = showUri $ ideasLink topAPI
+   , linkExercises = showUri $ ideasLink exercisesAPI
+   , linkServices  = showUri $ ideasLink topAPI
+   , linkExercise  = makeLink exerciseAPI . getId
+   , linkExamples  = makeLink examplesAPI . getId
+   , linkStrategy  = makeLink strategyAPI . getId
+   , linkRules     = makeLink rulesAPI . getId
+   , linkState     = \st -> showUri $ ideasLink stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
    }
  where
    makeLink f  = showUri . ideasLink f
    ideasLink x = safeLink ideasAPI x
    showUri x   = pack ("/" ++ show x)
+   
+   topAPI = Proxy :: Proxy GetDomainReasoner
+   exercisesAPI = Proxy :: Proxy GetExercises
    
    exerciseAPI = Proxy :: ExerciseProxy GetExercise
    examplesAPI = Proxy :: ExerciseProxy GetExamples
@@ -48,11 +56,19 @@ links = Links
    rulesAPI = Proxy :: ExerciseProxy GetRules
    stateAPI = Proxy :: ExerciseProxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> GetState)
 
+
+maf = safeLink ideasAPI this
+ where
+   this :: ExerciseProxy ("examples" :>  ReqBody '[JSON] String :> Post '[JSON] ResourceExample)
+   this = Proxy
+
 -----------------------------------------------------------
 -- Main
 
 restfulMain :: DomainReasoner -> IO ()
-restfulMain dr = run 8081 (serve ideasAPI (ideasServer links dr))
+restfulMain dr = do 
+   ref <- newIORef dr
+   run 8081 (serve ideasAPI (ideasServer links ref))
 
 ideasDocs :: String
 ideasDocs = markdown $ docs ideasAPI
