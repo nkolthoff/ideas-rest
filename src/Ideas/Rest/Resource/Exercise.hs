@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ideas.Rest.Resource.Exercise where
 
@@ -35,15 +36,15 @@ instance ToHtml ResourceExercise where
    
 instance ToHtml ResourceExercises where
    toHtml (RExercises links xs) = makePage links Nothing $ 
-      ul_ $ mconcat $ [ li_ $ exerciseHtml links ex | Some ex <- xs ]
+      ul_ [class_ "w3-ul w3-hoverable"] $ mconcat $ [ li_ $ a_ [href_ (linkExercise links ex)] $ toHtml (showId ex) | Some ex <- xs ]
    toHtmlRaw = toHtml
    
 exerciseHtml :: Monad m => Links -> Exercise a -> HtmlT m ()
 exerciseHtml links ex = do
    h1_ $ toHtml $ "Exercise " ++ showId ex
-   p_ $ a_ [href_ (linkExamples links ex)] (toHtml "examples")
-   p_ $ a_ [href_ (linkStrategy links ex)] (toHtml "strategy")
-   p_ $ a_ [href_ (linkRules links ex)]    (toHtml "rules")
+   p_ $ a_ [href_ (linkExamples links ex)] "examples"
+   p_ $ a_ [href_ (linkStrategy links ex)] "strategy"
+   p_ $ a_ [href_ (linkRules links ex)]    "rules"
 
 instance ToSample ResourceExercises where
     toSamples _ = []

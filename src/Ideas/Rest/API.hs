@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 {-
 $ curl -X POST -d '"~p -> p"' -H 'Accept: application/json' -H 'Content-type: a
@@ -24,7 +25,13 @@ import Ideas.Rest.Resource.State
 import Ideas.Rest.Resource.Strategy
 import Ideas.Rest.Resource.Rule
 import Ideas.Rest.Resource.DomainReasoner
+import Ideas.Rest.Resource.API
 import Servant.Docs
+import Data.Aeson.Types
+import Servant.HTML.Lucid
+import Ideas.Rest.HTML.Docs
+import Lucid
+import Ideas.Rest.HTML.Page
 
 -----------------------------------------------------------
 -- API
@@ -32,6 +39,7 @@ import Servant.Docs
 type IdeasAPI = 
         GetDomainReasoner
    :<|> GetExercises
+   :<|> GetAPI
    :<|> ExerciseAPI
    
 type ExerciseAPI = Capture "exerciseid" Id :>
@@ -40,17 +48,39 @@ type ExerciseAPI = Capture "exerciseid" Id :>
    :<|> "examples" :>  ReqBody '[JSON] String :> Post '[JSON] ResourceExample
    :<|> GetStrategy
    :<|> GetRules
+   :<|> GetRule
    :<|> "state" :> QueryParam "term" String :> QueryParam "prefix" String :> GetState
    )
 
 -----------------------------------------------------------
 -- Server
 
+ideasAPI :: Proxy IdeasAPI
+ideasAPI = Proxy
+
+instance ToParam (QueryParam "prefix" String) where
+    toParam _ =
+       DocQueryParam "prefix" [] "strategy prefix" Normal
+
+instance ToParam (QueryParam "term" String) where
+    toParam _ =
+       DocQueryParam "term" [] "current term" Normal
+
+instance ToCapture (Capture "exerciseid" Id) where
+    toCapture _ = 
+       DocCapture "exerciseid" "exercise identitifer" 
+       
+instance ToCapture (Capture "ruleid" Id) where
+    toCapture _ = 
+       DocCapture "ruleid" "rule identitifer" 
+
 ideasServer :: Links -> IORef DomainReasoner -> Server IdeasAPI
 ideasServer links ref =   
    withDomainReasoner ref (RDomainReasoner links)
  :<|> 
    withDomainReasoner ref (RExercises links . exercises)
+ :<|>
+   return (ResourceAPI links $ docs ideasAPI)
  :<|> 
    exerciseServer links ref
  
@@ -70,7 +100,11 @@ exerciseServer links ref s =
  :<|> 
    withExercise ref s (RStrategy . strategy) 
  :<|> 
-   withExercise ref s (RRules links . ruleset)
+   withExercise ref s (\ex -> RRules links ex (ruleset ex))
+ :<|> 
+   (\n -> withExerciseM ref s (\ex -> do
+      r <- getRule ex n
+      return $ RRule links ex r))
  :<|> \mt mp -> do
    Some ex <- someExercise ref s
    case maybe (Left "no term") (parser ex) mt of 
@@ -89,7 +123,12 @@ withDomainReasoner :: MonadIO m => IORef DomainReasoner -> (DomainReasoner -> a)
 withDomainReasoner ref f = do 
    dr <- liftIO (readIORef ref)
    return (f dr)
-         
+
+withExerciseM :: MonadIO m => IORef DomainReasoner -> Id -> (forall a . Exercise a -> m b) -> m b
+withExerciseM ref s f = do
+   Some ex <- someExercise ref s
+   f ex
+            
 withExercise :: MonadIO m => IORef DomainReasoner -> Id -> (forall a . Exercise a -> b) -> m b
 withExercise ref s f = do
    Some ex <- someExercise ref s

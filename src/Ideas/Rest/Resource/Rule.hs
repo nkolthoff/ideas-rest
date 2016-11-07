@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ideas.Rest.Resource.Rule where
 
@@ -12,29 +13,31 @@ import Data.Aeson.Types
 import Lucid
 import Data.Text (pack)
 import Servant.Docs
-import Servant
+import Servant hiding (Context)
 import Servant.HTML.Lucid
 
-data ResourceRules = forall a . RRules Links [Rule a]
+data ResourceRules = forall a . RRules Links (Exercise a) [Rule (Context a)]
 
-data ResourceRule = forall a . RRule Links (Rule a)
+data ResourceRule = forall a . RRule Links (Exercise a) (Rule (Context a))
 
 type GetRules = "rules" :> Get '[JSON, HTML] ResourceRules
 
+type GetRule = "rules" :> Capture "ruleid" Id :> Get '[JSON, HTML] ResourceRule
+
 instance ToJSON ResourceRules where
-   toJSON (RRules links rs) = 
-      toJSON [ RRule links r | r <- rs ]
+   toJSON (RRules links ex rs) = 
+      toJSON [ RRule links ex r | r <- rs ]
    
 instance ToJSON ResourceRule where
-   toJSON (RRule _ r) = String (pack (show (getId r)))
+   toJSON (RRule _ _ r) = String (pack (show (getId r)))
    
 instance ToHtml ResourceRule where
-   toHtml (RRule links r) = makePage links Nothing (ruleHtml r)
+   toHtml (RRule links ex r) = makePage links (Just ex) (ruleHtml r)
    toHtmlRaw = toHtml
    
 instance ToHtml ResourceRules where
-   toHtml (RRules links rs) = makePage links Nothing $ 
-      ul_ $ mconcat [ li_ $ ruleHtml r | r <- rs ]
+   toHtml (RRules links ex rs) = makePage links (Just ex) $ 
+      ul_ [class_ "w3-ul w3-hoverable"] $ mconcat [ li_ $ a_ [href_ (linkRule links ex r)] (ruleHtml r) | r <- rs ]
    toHtmlRaw = toHtml
    
 ruleHtml :: Monad m => Rule a -> HtmlT m ()

@@ -51,7 +51,7 @@ navBar links = div_ [class_ "w3-top"] $ do
       li_ [class_ "w3-hide-small"] $
          a_ [href_ (linkExercises links), class_ "w3-hover-white"] "Exercises"
       li_ [class_ "w3-hide-small"] $
-         a_ [href_ (linkServices links), class_ "w3-hover-white"] "Services"
+         a_ [href_ (linkAPI links), class_ "w3-hover-white"] "API"
 
 sidenav :: Monad m => Links -> Exercise a -> HtmlT m ()
 sidenav links ex = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-index:3;width:250px;margin-top:51px;", id_ "mySidenav"] $ do

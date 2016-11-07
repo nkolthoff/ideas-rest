@@ -24,9 +24,7 @@ import Ideas.Rest.Resource.State
 import Ideas.Rest.Resource.Strategy
 import Ideas.Rest.Resource.Rule
 import Ideas.Rest.API
-
-ideasAPI :: Proxy IdeasAPI
-ideasAPI = Proxy
+import Ideas.Rest.Resource.API
    
 type ExerciseProxy a = Proxy (Capture "exerciseid" Id :> a)
 
@@ -34,11 +32,12 @@ links :: Links
 links = Links 
    { linkTop       = showUri $ ideasLink topAPI
    , linkExercises = showUri $ ideasLink exercisesAPI
-   , linkServices  = showUri $ ideasLink topAPI
+   , linkAPI       = showUri $ ideasLink theAPI
    , linkExercise  = makeLink exerciseAPI . getId
    , linkExamples  = makeLink examplesAPI . getId
    , linkStrategy  = makeLink strategyAPI . getId
    , linkRules     = makeLink rulesAPI . getId
+   , linkRule      = \ex r -> showUri $ ideasLink ruleAPI (getId ex) (getId r)
    , linkState     = \st -> showUri $ ideasLink stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
    }
  where
@@ -48,19 +47,15 @@ links = Links
    
    topAPI = Proxy :: Proxy GetDomainReasoner
    exercisesAPI = Proxy :: Proxy GetExercises
+   theAPI = Proxy :: Proxy GetAPI
    
    exerciseAPI = Proxy :: ExerciseProxy GetExercise
    examplesAPI = Proxy :: ExerciseProxy GetExamples
    strategyAPI = Proxy :: ExerciseProxy GetStrategy
    
    rulesAPI = Proxy :: ExerciseProxy GetRules
+   ruleAPI  = Proxy :: ExerciseProxy GetRule
    stateAPI = Proxy :: ExerciseProxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> GetState)
-
-
-maf = safeLink ideasAPI this
- where
-   this :: ExerciseProxy ("examples" :>  ReqBody '[JSON] String :> Post '[JSON] ResourceExample)
-   this = Proxy
 
 -----------------------------------------------------------
 -- Main
@@ -96,15 +91,3 @@ instance MimeRender IH DomainReasoner where
   mimeRender _ dr = fromString $ MyHTML.showHTML $ MyHTML.htmlPage "Hello" $ MyHTML.h1 "world"
   
 -}
-    
-instance ToParam (QueryParam "prefix" String) where
-    toParam _ =
-       DocQueryParam "prefix" [] "strategy prefix" Normal
-    
-instance ToParam (QueryParam "term" String) where
-    toParam _ =
-       DocQueryParam "term" [] "current term" Normal
-    
-instance ToCapture (Capture "exerciseid" Id) where
-    toCapture _ = 
-       DocCapture "exerciseid" "exercise identitifer" 
