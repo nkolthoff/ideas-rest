@@ -2,6 +2,7 @@
 module Ideas.Rest.HTML.Page (makePage) where
 
 import Lucid
+import Data.Maybe
 import Data.Text
 import Ideas.Rest.Links
 import Ideas.Common.Library
@@ -13,7 +14,7 @@ makePage links mex content = do
       title_ "Title"
       meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
       stylesheet "http://www.w3schools.com/lib/w3.css"
-      stylesheet "http://www.w3schools.com/lib/w3-theme-black.css"
+      stylesheet "http://www.w3schools.com/lib/w3-theme-blue.css"
       stylesheet "https://fonts.googleapis.com/css?family=Roboto"
       stylesheet "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css"
       termWith "script" [src_ "http://code.jquery.com/jquery-3.1.1.min.js"] mempty
@@ -24,8 +25,8 @@ makePage links mex content = do
             Just ex -> sidenav links ex
             Nothing -> return ()
          overlayEffect
-         div_ [class_ "w3-main", style_ "margin-left:250px"] $ do
-            div_ [class_ "w3-row w3-padding-64"] content
+         div_ ([class_ "w3-main"] ++ [ style_ "margin-left:175px" | isJust mex]) $ do
+            div_ [class_ "w3-row w3-padding-16 w3-margin-left w3-margin-right"] $ p_ [class_ "w3-padding-16"] mempty <> content
             footer
          script_ (scriptTxt <> "\n" <> maybe mempty extraTxt mex)
    
@@ -55,7 +56,7 @@ navBar links = div_ [class_ "w3-top"] $ do
          a_ [href_ (linkAPI links), class_ "w3-hover-white"] "API"
 
 sidenav :: Monad m => Links -> Exercise a -> HtmlT m ()
-sidenav links ex = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-index:3;width:250px;margin-top:51px;", id_ "mySidenav"] $ do
+sidenav links ex = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-index:3;width:175px;margin-top:51px;", id_ "mySidenav"] $ do
    a_ [href_ "javascript:void(0)", onclick_ "w3_close()", class_ "w3-right w3-xlarge w3-padding-large w3-hover-black w3-hide-large", title_ "close menu"] $
       i_ [class_ "fa fa-remove"] mempty
    h4_ $ b_ "Exercise"
@@ -66,8 +67,6 @@ sidenav links ex = nav_ [class_ "w3-sidenav w3-collapse w3-theme-l5", style_ "z-
 
 footer :: Monad m => HtmlT m ()
 footer = footer_ [id_ "myFooter"] $ do
-   div_ [class_ "w3-container w3-theme-l2 w3-padding-32"] $
-      h4_ "Footer"
    div_ [class_ "w3-container w3-theme-l1"] $
       p_ $ do
          "Powered by "

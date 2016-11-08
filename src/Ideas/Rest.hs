@@ -21,6 +21,7 @@ import Ideas.Rest.Resource.DomainReasoner
 import Ideas.Rest.Resource.Exercise
 import Ideas.Rest.Resource.Example
 import Ideas.Rest.Resource.State
+import Ideas.Rest.Resource.Derivation
 import Ideas.Rest.Resource.Strategy
 import Ideas.Rest.Resource.Rule
 import Ideas.Rest.API
@@ -39,6 +40,7 @@ links = Links
    , linkRules     = makeLink rulesAPI . getId
    , linkRule      = \ex r -> showUri $ ideasLink ruleAPI (getId ex) (getId r)
    , linkState     = \st -> showUri $ ideasLink stateAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
+   , linkSolution  = \st -> showUri $ ideasLink solutionAPI (getId st) (Just (prettyPrinter (exercise st) (stateTerm st))) (Just (show (statePrefix st)))
    }
  where
    makeLink f  = showUri . ideasLink f
@@ -56,6 +58,7 @@ links = Links
    rulesAPI = Proxy :: ExerciseProxy GetRules
    ruleAPI  = Proxy :: ExerciseProxy GetRule
    stateAPI = Proxy :: ExerciseProxy ("state" :> QueryParam "term" String :> QueryParam "prefix" String :> GetState)
+   solutionAPI = Proxy :: ExerciseProxy ("solution" :> QueryParam "term" String :> QueryParam "prefix" String :> GetDerivation)
 
 -----------------------------------------------------------
 -- Main

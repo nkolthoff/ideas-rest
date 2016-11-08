@@ -27,7 +27,7 @@ instance ToJSON ResourceDomainReasoner where
    
 instance ToHtml ResourceDomainReasoner where
    toHtml (RDomainReasoner links dr) = makePage links Nothing $ do
-      h1_ [class_ "w3-text-teal"] $ 
+      h1_ $ 
          toHtml $ "Domain Reasoner " ++ showId dr
       ul_ $ forM_ (exercises dr) $ \(Some ex) -> 
         li_ $ a_ [href_ (linkExercise links ex)] (toHtml $ show $ getId ex)

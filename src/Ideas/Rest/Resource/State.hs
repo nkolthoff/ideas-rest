@@ -1,6 +1,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ideas.Rest.Resource.State where
 
@@ -24,14 +25,16 @@ instance ToJSON ResourceState where
    toJSON (RState _ _) = String (pack "resource state")
    
 instance ToHtml ResourceState where
-   toHtml (RState links st) = makePage links (Just (exercise st)) $
-      toHtml (show st) <>
+   toHtml (RState links st) = makePage links (Just (exercise st)) $ do
+      toHtml (show st)
       case allfirsts st of
          Left _ -> mempty
          Right xs -> ul_ (mconcat 
             [ li_ (a_ [href_ (linkState links newst)] (toHtml (showId r)))
             | ((r, _, _), newst) <- xs 
             ])
+      a_ [href_ $ linkSolution links st] $ "Show solution"
+            
    toHtmlRaw = toHtml
    
 instance ToSample ResourceState where

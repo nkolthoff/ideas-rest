@@ -42,6 +42,7 @@ instance ToHtml ResourceExercises where
 exerciseHtml :: Monad m => Links -> Exercise a -> HtmlT m ()
 exerciseHtml links ex = do
    h1_ $ toHtml $ "Exercise " ++ showId ex
+   p_ $ toHtml $ description ex
    p_ $ a_ [href_ (linkExamples links ex)] "examples"
    p_ $ a_ [href_ (linkStrategy links ex)] "strategy"
    p_ $ a_ [href_ (linkRules links ex)]    "rules"

@@ -27,7 +27,7 @@ apiToHtml api =
 
 endpointHtml :: Monad m => Endpoint -> Action -> HtmlT m ()
 endpointHtml endpoint action = do 
-   h2_ [class_ "w3-text-teal"] $ toHtml $ 
+   h2_ $ toHtml $ 
       BSC.unpack (_method endpoint) ++ " " ++ showPath (_path endpoint)
    mkHtml $ notesStr (_notes action)
    authHtml (_authInfo action)
@@ -62,7 +62,7 @@ noteStr nt =
 
 authHtml :: Monad m => [DocAuthentication] -> HtmlT m ()
 authHtml auths = do
-   h4_ [class_ "w3-text-teal"] "Authentication"
+   h4_ "Authentication"
    mkHtml $ mapped %~ view authIntro $ auths
    "Clients must supply the following data"
    mkHtml $ mapped %~ view authDataRequired $ auths
@@ -70,7 +70,7 @@ authHtml auths = do
 capturesHtml :: Monad m => [DocCapture] -> HtmlT m ()
 capturesHtml xs = 
    unless (null xs) $ do
-      h4_ [class_ "w3-text-teal"] "Captures"
+      h4_ "Captures"
       mkList $ map captureHtml xs
 
 captureHtml :: Monad m => DocCapture -> HtmlT m ()
@@ -87,7 +87,7 @@ headersStr l = [""] ++ map headerStr l ++ [""]
 paramsHtml :: Monad m => [DocQueryParam] -> HtmlT m ()
 paramsHtml xs = 
    unless (null xs) $ 
-      h4_ [class_ "w3-text-teal"] "GET Parameters" <>
+      h4_ "GET Parameters" <>
       mkList (map paramHtml xs)
 
 paramHtml :: Monad m => DocQueryParam -> HtmlT m ()
@@ -112,7 +112,7 @@ paramHtml param = do
 rqbodyHtml :: Monad m => [M.MediaType] -> [(M.MediaType, ByteString)]-> HtmlT m ()
 rqbodyHtml types s =
    unless (null types && null s) $ do
-      h4_ [class_ "w3-text-teal"] "Request"
+      h4_ "Request"
       mkList (mediaTypesHtml types : map bodyHtml s)
 
 mediaTypesHtml :: Monad m => [M.MediaType] -> HtmlT m ()
@@ -151,7 +151,7 @@ contentStr mime_type body =
 
 responseHtml :: Monad m => Response -> HtmlT m ()
 responseHtml resp = do
-   h4_ [class_ "w3-text-teal"] "Response"
+   h4_ "Response"
    mkList   
       [ toHtml $ "Status code " ++ show (_respStatus resp)
       , toHtml $ "Headers: " ++ show (_respHeaders resp)

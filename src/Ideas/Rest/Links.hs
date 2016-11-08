@@ -16,4 +16,5 @@ data Links = Links
    , linkRules     :: forall a . Exercise a -> Text
    , linkRule      :: forall a . Exercise a -> Rule (Context a) -> Text 
    , linkState     :: forall a . State a    -> Text
+   , linkSolution  :: forall a . State a    -> Text
    }

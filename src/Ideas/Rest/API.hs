@@ -18,6 +18,7 @@ import Ideas.Common.Library
 import Ideas.Service.DomainReasoner
 import Ideas.Common.Utils
 import Ideas.Service.State
+import Ideas.Service.BasicServices (solution)
 import Ideas.Rest.Links
 import Ideas.Rest.Resource.Exercise
 import Ideas.Rest.Resource.Example
@@ -26,6 +27,7 @@ import Ideas.Rest.Resource.Strategy
 import Ideas.Rest.Resource.Rule
 import Ideas.Rest.Resource.DomainReasoner
 import Ideas.Rest.Resource.API
+import Ideas.Rest.Resource.Derivation
 import Servant.Docs
 import Data.Aeson.Types
 import Servant.HTML.Lucid
@@ -50,6 +52,7 @@ type ExerciseAPI = Capture "exerciseid" Id :>
    :<|> GetRules
    :<|> GetRule
    :<|> "state" :> QueryParam "term" String :> QueryParam "prefix" String :> GetState
+   :<|> "solution" :> QueryParam "term" String :> QueryParam "prefix" String :> GetDerivation
    )
 
 -----------------------------------------------------------
@@ -105,15 +108,31 @@ exerciseServer links ref s =
    (\n -> withExerciseM ref s (\ex -> do
       r <- getRule ex n
       return $ RRule links ex r))
- :<|> \mt mp -> do
+ :<|> (\mt mp -> do
    Some ex <- someExercise ref s
    case maybe (Left "no term") (parser ex) mt of 
       Left msg -> error msg
       Right a  -> 
          case maybe Nothing readPaths mp of
             Just ps -> return (RState links (makeState ex (replayPaths ps (strategy ex) (inContext ex a)) (inContext ex a)))
-            Nothing -> return (RState links (emptyState ex a))
-       
+            Nothing -> return (RState links (emptyState ex a)))
+ :<|> (\mt mp -> do
+   Some ex <- someExercise ref s
+   case maybe (Left "no term") (parser ex) mt of 
+      Left msg -> error msg
+      Right a  -> 
+         case maybe Nothing readPaths mp of
+            Just ps -> 
+               let st = makeState ex (replayPaths ps (strategy ex) (inContext ex a)) (inContext ex a)
+               in case solution Nothing st of
+                     Left msg -> error msg 
+                     Right d  -> return (RDerivation links ex d)
+            Nothing -> 
+               let st = emptyState ex a 
+               in case solution Nothing st of
+                     Left msg -> error msg 
+                     Right d  -> return (RDerivation links ex d))
+
 someExercise :: MonadIO m => IORef DomainReasoner -> Id -> m (Some Exercise)
 someExercise ref s = do 
    dr <- liftIO (readIORef ref)
