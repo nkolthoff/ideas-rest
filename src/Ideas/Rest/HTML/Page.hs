@@ -16,6 +16,7 @@ makePage links mex content = do
       stylesheet "http://www.w3schools.com/lib/w3-theme-black.css"
       stylesheet "https://fonts.googleapis.com/css?family=Roboto"
       stylesheet "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css"
+      termWith "script" [src_ "http://code.jquery.com/jquery-3.1.1.min.js"] mempty
       style_ styleTxt
       body_ $ do
          navBar links
@@ -26,7 +27,7 @@ makePage links mex content = do
          div_ [class_ "w3-main", style_ "margin-left:250px"] $ do
             div_ [class_ "w3-row w3-padding-64"] content
             footer
-         script_ scriptTxt
+         script_ (scriptTxt <> "\n" <> maybe mempty extraTxt mex)
    
 styleTxt :: Text
 styleTxt =
@@ -99,5 +100,24 @@ scriptTxt =
    \    overlayBg.style.display = \"none\";\n\
    \}"
    
+extraTxt :: Exercise a -> Text 
+extraTxt ex =
+   "var exid = '" <> pack (showId ex) <> "';\n\
+   \function addExample() {\n\
+   \  alert($('input[name=difficulty]:checked', '#add-example').val());\n\
+   \  postByExerciseidExamples(exid, $('#example').val(), null, null);\n\
+   \}\n\
+   \var postByExerciseidExamples = function(exerciseid, body, onSuccess, onError)\n\
+   \{\n\
+   \  $.ajax(\n\
+   \    { url: '/' + encodeURIComponent(exerciseid) + '/examples'\n\
+   \    , success: onSuccess\n\
+   \    , data: JSON.stringify(body)\n\
+   \    , contentType: 'application/json'\n\
+   \    , error: onError\n\
+   \    , type: 'POST'\n\
+   \    });\n\
+   \}"
+
 stylesheet :: Monad m => Text -> HtmlT m ()
 stylesheet url = link_ [rel_ "stylesheet", href_ url]

@@ -95,8 +95,8 @@ exerciseServer links ref s =
    case parser ex txt of 
       Left msg -> fail msg
       Right a  -> do
-         liftIO (writeIORef ref dr {exercises = map (\(Some x) -> if getId x == getId ex then Some (ex {examples = (Medium, a) : examples ex}) else Some x) (exercises dr)})
-         return (RExample links ex Medium a))
+         liftIO (writeIORef ref dr {exercises = map (\(Some x) -> if getId x == getId ex then Some (ex {examples = (VeryEasy, a) : examples ex}) else Some x) (exercises dr)})
+         return (RExample links ex VeryEasy a))
  :<|> 
    withExercise ref s (RStrategy . strategy) 
  :<|> 
