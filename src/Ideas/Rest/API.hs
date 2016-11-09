@@ -47,6 +47,7 @@ type IdeasAPI =
 type ExerciseAPI = Capture "exerciseid" Id :>
    (    GetExercise
    :<|> GetExamples
+   :<|> AddExample
    :<|> "examples" :>  ReqBody '[JSON] String :> Post '[JSON] ResourceExample
    :<|> GetStrategy
    :<|> GetRules
@@ -92,6 +93,8 @@ exerciseServer links ref s =
    withExercise ref s (RExercise links) 
  :<|> 
    withExercise ref s (\ex -> RExamples links ex (examples ex))
+ :<|>
+   withExercise ref s (\ex -> AddExampleForm links ex)
  :<|> (\txt -> do
    dr <- liftIO (readIORef ref)
    Some ex <- findExercise dr s

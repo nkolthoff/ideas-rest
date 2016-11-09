@@ -13,6 +13,7 @@ makePage links mex content = do
    html_ $ do
       title_ "Title"
       meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1"]
+      link_ [rel_ "icon", type_ "image/png", href_ "http://ideas.cs.uu.nl/images/star.png"]
       stylesheet "http://www.w3schools.com/lib/w3.css"
       stylesheet "http://www.w3schools.com/lib/w3-theme-blue.css"
       stylesheet "https://fonts.googleapis.com/css?family=Roboto"
