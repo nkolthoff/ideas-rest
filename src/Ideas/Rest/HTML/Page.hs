@@ -105,7 +105,7 @@ extraTxt ex =
    "var exid = '" <> pack (showId ex) <> "';\n\
    \function addExample() {\n\
    \  alert($('input[name=difficulty]:checked', '#add-example').val());\n\
-   \  postByExerciseidExamples(exid, $('#example').val(), null, null);\n\
+   \  postByExerciseidExamples(exid, {expr: $('#example').val(), difficulty: $('input[name=difficulty]:checked', '#add-example').val()}, null, null);\n\
    \}\n\
    \var postByExerciseidExamples = function(exerciseid, body, onSuccess, onError)\n\
    \{\n\

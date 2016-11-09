@@ -2,6 +2,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-
 $ curl -X POST -d '"~p -> p"' -H 'Accept: application/json' -H 'Content-type: a
@@ -34,6 +35,7 @@ import Servant.HTML.Lucid
 import Ideas.Rest.HTML.Docs
 import Lucid
 import Ideas.Rest.HTML.Page
+import Data.Text (unpack)
 
 -----------------------------------------------------------
 -- API
@@ -48,7 +50,7 @@ type ExerciseAPI = Capture "exerciseid" Id :>
    (    GetExercise
    :<|> GetExamples
    :<|> AddExample
-   :<|> "examples" :>  ReqBody '[JSON] String :> Post '[JSON] ResourceExample
+   :<|> "examples" :>  ReqBody '[JSON] NewExample :> Post '[JSON] ResourceExample
    :<|> GetStrategy
    :<|> GetRules
    :<|> GetRule
@@ -95,14 +97,14 @@ exerciseServer links ref s =
    withExercise ref s (\ex -> RExamples links ex (examples ex))
  :<|>
    withExercise ref s (\ex -> AddExampleForm links ex)
- :<|> (\txt -> do
+ :<|> (\(NewExample txt dif) -> do
    dr <- liftIO (readIORef ref)
    Some ex <- findExercise dr s
    case parser ex txt of 
       Left msg -> fail msg
       Right a  -> do
-         liftIO (writeIORef ref dr {exercises = map (\(Some x) -> if getId x == getId ex then Some (ex {examples = (VeryEasy, a) : examples ex}) else Some x) (exercises dr)})
-         return (RExample links ex VeryEasy a))
+         liftIO (writeIORef ref dr {exercises = map (\(Some x) -> if getId x == getId ex then Some (ex {examples = (dif, a) : examples ex}) else Some x) (exercises dr)})
+         return (RExample links ex dif a))
  :<|> 
    withExercise ref s (RStrategy . strategy) 
  :<|> 
@@ -157,3 +159,30 @@ withExercise ref s f = do
    return (f ex) 
    
 instance ToSample Char
+
+instance ToSample Difficulty where
+   toSamples _ = []
+   
+instance ToJSON Difficulty where
+   toJSON = toJSON . show
+ 
+instance FromJSON Difficulty where
+   parseJSON (String txt) =
+      case readM (unpack txt) of
+         Just dif -> return dif
+         Nothing  -> fail "difficulty not recognized" 
+   parseJSON _ = fail "difficulty must be a string"
+   
+data NewExample = NewExample String Difficulty
+
+instance ToJSON NewExample where
+   toJSON (NewExample s dif) = 
+      object ["expr" .= s, "difficulty" .= dif]
+
+instance ToSample NewExample where
+   toSamples _ = []
+   
+instance FromJSON NewExample where
+   parseJSON (Object xs) = 
+      NewExample <$> xs .: "expr" <*> xs .: "difficulty"
+   parseJSON _ = fail "new example must be an object"
