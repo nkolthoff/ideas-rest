@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Ideas.Rest (restfulMain, ideasDocs, ideasJS) where
 
@@ -83,6 +84,11 @@ instance ToHttpApiData Id where
 instance FromHttpApiData Id where
    parseUrlPiece = Right . newId . unpack
 
+instance FromHttpApiData Difficulty where
+   parseUrlPiece t = 
+      case readM (unpack t) of
+         Just d  -> Right d
+         Nothing -> Left "not a difficulty"
 
 {-
  

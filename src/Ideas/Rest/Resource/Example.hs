@@ -6,8 +6,11 @@
 
 module Ideas.Rest.Resource.Example where
 
+import Control.Monad
 import Ideas.Common.Library
 import Data.Aeson.Types
+import Data.Function
+import Data.List
 import Lucid
 import Data.Text (pack)
 import Ideas.Rest.Links
@@ -23,6 +26,8 @@ data ResourceExample = forall a . RExample Links (Exercise a) Difficulty a
 
 type GetExamples = "examples" :> Get '[JSON, HTML] ResourceExamples
 
+type GetExamplesDifficulty = "examples" :> Capture "difficulty" Difficulty :> Get '[JSON, HTML] ResourceExamples
+
 instance ToJSON ResourceExamples where
    toJSON (RExamples links ex xs) =
       toJSON [ RExample links ex dif a | (dif, a) <- xs ]
@@ -36,15 +41,19 @@ instance ToHtml ResourceExample where
    
 instance ToHtml ResourceExamples where
    toHtml (RExamples links ex xs) = makePage links (Just ex) $ do
-      ul_ $ mconcat [ li_ $ exampleHtml links ex dif a | (dif, a) <- xs ]
-      a_ [href_ $ linkAddExample links ex] "Add example"
+      h2_ $ "Examples (" <> toHtml (show (length xs)) <> ")"
+      let grxs = groupBy ((==) `on` fst) $ sortBy (compare `on` fst) xs
+      forM_ grxs $ \ys -> do
+         h4_ $ toHtml $ show (fst $ head ys) ++ " (" ++ show (length ys) ++ ")"
+         p_ $ ul_ [class_ "w3-ul w3-border"] $ mconcat [ li_ $ exampleHtml links ex dif a | (dif, a) <- ys ]
+      p_ $ a_ [href_ $ linkAddExample links ex] "Add example"
       
    toHtmlRaw = toHtml
    
 exampleHtml :: Monad m => Links -> Exercise a -> Difficulty -> a -> HtmlT m ()
-exampleHtml links ex dif a =
-   toHtml (prettyPrinter ex a ++ " " ++ show dif ++ " ") <>
-   p_ (a_ [href_ (linkState links $ emptyState ex a)] "start")
+exampleHtml links ex dif a = do
+   toHtml (prettyPrinter ex a)
+   a_ [class_ "w3-margin-left", href_ (linkState links $ emptyState ex a)] "start"
 
 instance ToSample ResourceExamples where
     toSamples _ = []

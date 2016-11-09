@@ -34,6 +34,7 @@ makePage links mex content = do
 styleTxt :: Text
 styleTxt =
    "html,body,h1,h2,h3,h4,h5,h6 {font-family: \"Roboto\", sans-serif}\n\
+   \h1,h2,h3,h4,h5,h6 {color: #085a9d;}\n\
    \.w3-sidenav a,.w3-sidenav h4 {padding: 12px;}\n\
    \.w3-navbar li a {\n\
    \    padding-top: 12px;\n\

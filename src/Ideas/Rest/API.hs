@@ -4,12 +4,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{-
-$ curl -X POST -d '"~p -> p"' -H 'Accept: application/json' -H 'Content-type: a
-pplication/json' http://localhost:8081/logic.propositional.dnf/examples
-"~p -> p medium"
--}
-
 module Ideas.Rest.API where
 
 import Control.Monad.IO.Class
@@ -49,8 +43,9 @@ type IdeasAPI =
 type ExerciseAPI = Capture "exerciseid" Id :>
    (    GetExercise
    :<|> GetExamples
+   :<|> GetExamplesDifficulty
    :<|> AddExample
-   :<|> "examples" :>  ReqBody '[JSON] NewExample :> Post '[JSON] ResourceExample
+   :<|> "examples" :>  ReqBody '[JSON] NewExample :> PostNoContent '[JSON] ()
    :<|> GetStrategy
    :<|> GetRules
    :<|> GetRule
@@ -80,6 +75,10 @@ instance ToCapture (Capture "ruleid" Id) where
     toCapture _ = 
        DocCapture "ruleid" "rule identitifer" 
 
+instance ToCapture (Capture "difficulty" Difficulty) where
+    toCapture _ = 
+       DocCapture "difficulty" "difficulty" 
+
 ideasServer :: Links -> IORef DomainReasoner -> Server IdeasAPI
 ideasServer links ref =   
    withDomainReasoner ref (RDomainReasoner links)
@@ -96,6 +95,8 @@ exerciseServer links ref s =
  :<|> 
    withExercise ref s (\ex -> RExamples links ex (examples ex))
  :<|>
+   (\dif -> withExercise ref s (\ex -> RExamples links ex (filter ((==dif) . fst) (examples ex))))
+ :<|>
    withExercise ref s (\ex -> AddExampleForm links ex)
  :<|> (\(NewExample txt dif) -> do
    dr <- liftIO (readIORef ref)
@@ -104,7 +105,7 @@ exerciseServer links ref s =
       Left msg -> fail msg
       Right a  -> do
          liftIO (writeIORef ref dr {exercises = map (\(Some x) -> if getId x == getId ex then Some (ex {examples = (dif, a) : examples ex}) else Some x) (exercises dr)})
-         return (RExample links ex dif a))
+         return ())
  :<|> 
    withExercise ref s (RStrategy . strategy) 
  :<|> 
