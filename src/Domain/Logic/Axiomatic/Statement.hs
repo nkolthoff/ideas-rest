@@ -3,8 +3,10 @@ module Domain.Logic.Axiomatic.Statement where
 
 import Control.Monad
 import Data.List
+import Data.String
 import Ideas.Common.Library
 import Ideas.Text.JSON
+import Ideas.Text.Latex
 import Domain.Logic.Formula
 import Domain.Logic.Parser
 import qualified Data.Set as S
@@ -42,6 +44,13 @@ instance IsTerm Statement where
 instance InJSON Statement where
    toJSON   = toJSON . show
    fromJSON = fromJSON >=> readM
+
+instance ToLatex Statement where
+   toLatex st = commas (map slogicToLatex (S.toList (assumptions st)))
+                   <> command "vdash" <> slogicToLatex (consequent st)
+
+slogicToLatex :: SLogic -> Latex
+slogicToLatex = fromString . show
 
 statementSymbol :: Symbol
 statementSymbol = newSymbol "logic.propositional.axiomatic.statement"

@@ -25,9 +25,9 @@ import Data.Typeable
 import Domain.Math.Data.Relation (relationSymbols)
 import Domain.Math.Expr.Symbols
 import Ideas.Common.Rewriting
-import Ideas.Common.Utils.Uniplate
+import Ideas.Utils.Uniplate
 import Test.QuickCheck
-import qualified Ideas.Common.Algebra.Field as F
+import qualified Domain.Algebra.Field as F
 
 -----------------------------------------------------------------------
 -- Expression data type
@@ -144,7 +144,7 @@ instance Uniplate Expr where
 -- Arbitrary instance
 
 instance Arbitrary Expr where
-   arbitrary = liftM fromInteger arbitrary
+   arbitrary = fromInteger <$> arbitrary
       -- before changing this instance, check that the
       -- Gaussian elimination exercise still works (with checkExercise)
       {-
@@ -269,7 +269,7 @@ instance IsTerm Expr where
    fromTerm (TNum n)   = return (fromInteger n)
    fromTerm (TFloat d) = return (fromDouble d)
    fromTerm (TVar v)   = return (Var v)
-   fromTerm (TList xs) = liftM (function listSymbol) (mapM fromTerm xs)
+   fromTerm (TList xs) = function listSymbol <$> mapM fromTerm xs
    fromTerm t =
       case getFunction t of
          Just (s, xs) -> do

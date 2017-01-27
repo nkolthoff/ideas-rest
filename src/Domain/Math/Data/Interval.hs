@@ -33,10 +33,10 @@ module Domain.Math.Data.Interval
 import Control.Monad
 import Data.List (intercalate)
 import Data.Maybe
-import Ideas.Common.Algebra.Boolean
-import Ideas.Common.Algebra.BooleanLaws
-import Ideas.Common.Algebra.Law
-import Ideas.Common.Utils.TestSuite
+import Domain.Algebra.Boolean
+import Domain.Algebra.BooleanLaws
+import Domain.Algebra.Law
+import Ideas.Utils.TestSuite
 import Test.QuickCheck
 
 --------------------------------------------------------------------
@@ -122,7 +122,7 @@ makeInterval pl pr = maybe empty (I . return) (makeSegment pl pr)
 
 makeSegment :: Ord a => Endpoint a -> Endpoint a -> Maybe (Segment a)
 makeSegment pl pr =
-   case liftM2 compare (getPoint pl) (getPoint pr) of
+   case compare <$> getPoint pl <*> getPoint pr of
       Just EQ
          | isExcluding pl -> Nothing
          | isExcluding pr -> Nothing
@@ -179,7 +179,7 @@ complementIntervals (I xs)
    | otherwise = I $ catMaybes $
         left (head xs) : zipWith f xs (drop 1 xs) ++ [right (last xs)]
  where
-   f (S _ a) (S b _) = liftM2 S (g a) (g b)
+   f (S _ a) (S b _) = S <$> g a <*> g b
 
    g (Including a) = Just (Excluding a)
    g (Excluding a) = Just (Including a)
@@ -208,7 +208,7 @@ merge :: Ord a => Segment a -> Segment a -> Maybe (Segment a)
 merge ia@(S al ar) ib@(S bl br)
    | minPointLeft al bl /= al = merge ib ia
    | otherwise =
-        case liftM2 compare (getPoint ar) (getPoint bl) of
+        case compare <$> getPoint ar <*> getPoint bl of
            Just LT -> Nothing
            Just EQ | isExcluding ar && isExcluding bl -> Nothing
            _ -> Just (S al (maxPointRight ar br))
@@ -226,7 +226,7 @@ maxPointRight = compareEndpoint False True
 
 compareEndpoint :: Ord a => Bool -> Bool -> Endpoint a -> Endpoint a -> Endpoint a
 compareEndpoint b1 b2 a b =
-   case liftM2 compare (getPoint a) (getPoint b) of
+   case compare <$> getPoint a <*> getPoint b of
       Just LT                -> x
       Just EQ | p a          -> x
               | otherwise    -> y
@@ -243,8 +243,8 @@ compareEndpoint b1 b2 a b =
 
 instance (Arbitrary a, Ord a) => Arbitrary (Endpoint a) where
    arbitrary = frequency
-      [ (2, liftM Excluding arbitrary)
-      , (2, liftM Including arbitrary)
+      [ (2, Excluding <$> arbitrary)
+      , (2, Including <$> arbitrary)
       , (1, return Unbounded)
       ]
 instance (CoArbitrary a, Ord a) => CoArbitrary (Endpoint a) where
@@ -255,7 +255,7 @@ instance (CoArbitrary a, Ord a) => CoArbitrary (Endpoint a) where
 instance (Arbitrary a, Ord a) => Arbitrary (Interval a) where
    arbitrary = do
       n  <- choose (0, 100)
-      xs <- replicateM n (liftM2 makeInterval arbitrary arbitrary)
+      xs <- replicateM n (makeInterval <$> arbitrary <*> arbitrary)
       return (ors xs)
 
 instance (CoArbitrary a, Ord a) => CoArbitrary (Segment a) where

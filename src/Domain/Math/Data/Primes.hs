@@ -21,7 +21,7 @@ module Domain.Math.Data.Primes
 import Control.Monad
 import Data.Function
 import Data.List
-import Ideas.Common.Utils.TestSuite
+import Ideas.Utils.TestSuite
 import Test.QuickCheck
 import qualified Data.Sequence as S
 

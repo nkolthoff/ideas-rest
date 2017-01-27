@@ -18,7 +18,7 @@ module Domain.Logic.Views
    ) where
 
 import Domain.Logic.Formula
-import Ideas.Common.Algebra.SmartGroup
+import Domain.Algebra.SmartGroup
 import Ideas.Common.Id
 import Ideas.Common.View hiding (simplify)
 

@@ -18,10 +18,10 @@ module Domain.Math.Expr.Views
 
 import Domain.Math.Expr.Data
 import Domain.Math.Expr.Symbols
-import Ideas.Common.Algebra.Group
-import Ideas.Common.Algebra.SmartGroup
+import Domain.Algebra.Group
+import Domain.Algebra.SmartGroup
 import Ideas.Common.Library hiding ((.*.), (./.))
-import Ideas.Common.Utils.Uniplate
+import Ideas.Utils.Uniplate
 import Prelude hiding ((^))
 import qualified Data.Set as S
 

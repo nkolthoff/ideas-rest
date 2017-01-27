@@ -24,7 +24,6 @@ module Domain.Math.Expr.Clipboard
    , addToClipboardG, lookupClipboardG
    ) where
 
-import Control.Monad
 import Data.Maybe
 import Data.Typeable
 import Domain.Math.Data.Relation
@@ -53,8 +52,8 @@ instance IsTerm Clipboard where
       let f (s, a) = Var s :==: a
       in toTerm . map f . M.toList . unC
    fromTerm =
-      let f (x :==: a) = liftM (\k -> (k, a)) (getVariable x)
-      in liftM (C . M.fromList) . mapM f . fromTerm
+      let f (x :==: a) = (\k -> (k, a)) <$> getVariable x
+      in fmap (C . M.fromList) . mapM f . fromTerm
 
 instance Reference Clipboard
 

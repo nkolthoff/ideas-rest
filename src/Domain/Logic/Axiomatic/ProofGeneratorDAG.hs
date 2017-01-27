@@ -1,5 +1,6 @@
 module Domain.Logic.Axiomatic.ProofGeneratorDAG where
 
+import Ideas.Utils.Prelude
 import Data.List
 import Data.Maybe
 import Data.Monoid
@@ -10,7 +11,7 @@ import Domain.Logic.Formula
 import Domain.Logic.ProofDAG
 import Domain.Logic.Axiomatic.Statement
 import Domain.Logic.Axiomatic.Examples
-import Domain.Logic.Axiomatic.Rules
+import Domain.Logic.Axiomatic.Rules hiding (assumption)
 
 axiomaticDagExercise :: Exercise Env
 axiomaticDagExercise = emptyExercise
@@ -19,20 +20,23 @@ axiomaticDagExercise = emptyExercise
    , status         = Experimental
    , prettyPrinter  = show
    , strategy       = Library.label "axiomatic" (liftToContext axiomaticStrategy)
-   , examples       = [ (dif, makeEnv a) | (dif, a) <- exampleList ]
+   , examples       = [ (dif, makeEnv [a]) | (dif, a) <- exampleList ]
    }    
    
 axiomaticStrategy :: Strategy Env
 axiomaticStrategy = 
-   untilS stop
+  untilS stop
+  --   replicateS 20
       $  goalAvailable
-      |> implicationIntro
+      |> skipFalse
       |> elimGoal
+  --    |> implicationIntro
+      |> implicationIntro1
    --   |> axiomBheuristic1 .*. repeatS modusPonens
    --   |> axiomBheuristic2 
-      |> axiomCheuristic1 .*. repeatS modusPonens
-      |> axiomCheuristic3 .*. repeatS modusPonens
-      |> axiomCheuristic2 .*. repeatS modusPonens
+      |> axiomCheuristic1 .*. modusPonens   
+      |> axiomCheuristic3 .*. modusPonens
+      |> axiomCheuristic2 .*. modusPonens
       |> modusPonens
       |> doubleNegation
       |> deduction
@@ -68,7 +72,7 @@ contradiction2S = contradiction2 .*. contradiction2seq .*. repeatS modusPonens .
 -----------------------------------------------------------------
 
 data Axiomatic = Assumption | AxiomA | AxiomB | AxiomC | ModusPonens | Deduction
-   deriving (Eq, Ord)
+   deriving (Eq, Ord, Enum)
    
 instance Show Axiomatic where
    show Assumption  = unqualified assumptionId
@@ -78,10 +82,15 @@ instance Show Axiomatic where
    show ModusPonens = unqualified mpId
    show Deduction   = unqualified dedId
 
+instance Read Axiomatic where
+   readsPrec _ s =
+      [ (a, "") | a <- [Assumption .. Deduction], show a == s ]
+         
 data Env = Env 
    { goals    :: [Statement]
    , proofDag :: ProofDag Axiomatic Statement
    }
+ deriving Eq
    
 statements :: Env -> [Statement]
 statements = proofterms . proofDag
@@ -116,11 +125,14 @@ axiomC phi psi = S.empty :|- (Not phi :->: Not psi) :->: (psi :->: phi)
 
 ---------------------------------------------
 
-makeEnv :: Statement -> Env
-makeEnv st@(ps :|- _) = Env 
-   { goals     = [st]
-   , proofDag  = mconcat [ assumption p | p <- S.toList ps ]
+makeEnvWithDag :: ProofDag Axiomatic Statement -> [Statement] -> Env
+makeEnvWithDag dag gs = Env 
+   { goals     = gs
+   , proofDag  =  mconcat [ assumption p | (ps :|- _) <- gs, p <- S.toList ps ] <> dag
    }
+   
+makeEnv :: [Statement] -> Env
+makeEnv = makeEnvWithDag mempty
     
 instance Show Env where
    show env = intercalate "\n"
@@ -130,11 +142,39 @@ instance Show Env where
     where
       column s xs = intercalate "\n" $ (s ++ ":") : map ("  " ++) xs
  
+-- poging om met een dag te starten
+exampleDagList :: [(ProofDag Axiomatic Statement , [Statement])]
+exampleDagList = 
+   [(axiomB2 p q r <> assumption (p :->: q) <> 
+    ([[p :->: (q :->: r), p :->: q ] |- (p :->: r)] ==>  [p :->: (q :->: r) ] |- (p :->: q) :->: (p :->: r)$ Deduction ),
+     [[p :->: (q :->: r), p :->: q ] |- (p :->: r)
+     ,[p :->: (q :->: r) ] |- (p :->: q) :->: (p :->: r)]),
+     (assumption (p :->: q) <> assumption p <> ([[p]|- p]==> []|- (p :->: p)$ Deduction ),
+     [[p, p:->:q] |- q])
+     ,(mempty,
+      [ [p] |- Not (Not p)
+      , [Not (Not p)] |- p])
+     , (mempty,
+      [[ p :->: Not q ]|- q :->: Not p, [ q :->: Not p ]|- p :->: Not q])
+     ]
+     
+
+   --(addTerms xs (makeGoal ([p :->: q] |- (r :->: p) :->: (Not (Not r) :->: q))),  [p :->: q] |- (r :->: p) :->: (Not (Not r) :->: q))]
+  where
+   p = Var (ShowString "p") 
+   q = Var (ShowString "q")
+   r = Var (ShowString "r") 
+   xs = [[r] |- r]
+
+  
+--dagsee:: Int -> IO ()
+dagsee i = printDerivation axiomaticDagExercise (makeEnvWithDag  (fst (exampleDagList !! i)) (snd (exampleDagList !! i)))
+      
 mmsee :: Int -> IO ()
-mmsee i = printDerivation axiomaticDagExercise (makeEnv $ snd $ mmExampleList !! i)
+mmsee i = printDerivation axiomaticDagExercise (makeEnv [snd $ mmExampleList !! i])
 
 see :: Int -> IO ()
-see i = printDerivation axiomaticDagExercise (makeEnv $ snd $ exampleList !! i)
+see i = printDerivation axiomaticDagExercise (makeEnv [snd $ exampleList !! i])
 
 modusPonens :: Rule Env
 modusPonens = makeRule "modus-ponens" trans
@@ -149,11 +189,15 @@ modusPonens = makeRule "modus-ponens" trans
             , b <- statements env
             , st  <- isMP a b
             -- , all (\x -> not (x `subStatement` st)) (statements env)
+            , noCycle st a b
             ]
                        
       isMP (as1 :|- p1 :->: q) (as2 :|- p2) | p1 == p2 =
          [ as1 `S.union` as2 :|- q ]
       isMP _ _ = []
+      dag = proofDag env
+      noCycle p q r =
+         p `S.notMember` (simpleDepends dag q `S.union` simpleDepends dag r)
 
 extends :: Env -> Env -> Maybe Env
 extends new old 
@@ -165,7 +209,7 @@ doubleNegation = makeRule "double-negation" trans
  where
    trans env 
       | null fs   = Nothing
-      | otherwise = env { proofDag = proofDag env <> mconcat (take 3 new) } -- waarom is take 3 hier nodig?
+      | otherwise = env { proofDag = proofDag env <> mconcat new } -- waarom is take 3 hier nodig?
            `extends` env
     where
       new = mconcat fs
@@ -176,8 +220,8 @@ doubleNegation = makeRule "double-negation" trans
             | st <- statements env
             , let con = consequent st
             , pcon <- isDoubleNeg con
-           -- , all (\x -> not (x `subStatement` (assumptions st :|- pcon)))
-           --       (statements env)
+            , all (\x -> not (x `subStatement` (assumptions st :|- pcon)))
+                (statements env)
             ] 
             
       isDoubleNeg (Not (Not p)) = [p]
@@ -187,7 +231,7 @@ doubleNegation = makeRule "double-negation" trans
 -- verwijdert de bijbehorende doelen
 implicationIntro :: Rule Env
 implicationIntro = makeRule "impl-intro" trans
- where
+ where {-
    trans env@(Env (csr:(_ :|- p :->: q):gls) _) 
       | not newIsEmpty = Just env
            { goals = gls
@@ -203,8 +247,39 @@ implicationIntro = makeRule "impl-intro" trans
    
       new = mconcat qs
       newIsEmpty = null $ proofterms new
+-}
+   trans _ = Nothing
+   
+   -- voegt een implicatie (via deductiestelling) toe aan de proofDag, en 
+-- verwijdert de bijbehorende doelen
+implicationIntro1 :: Rule Env
+implicationIntro1 = makeRule "impl-intro1" trans
+ where
+   trans env@(Env ((as :|- p :->: q):gls) _) 
+      | not newIsEmpty = Just env
+           { goals = gls
+           , proofDag = proofDag env <> new
+           }
+    where
+      qs  = [ [a] ==> (S.delete p as1) :|- p :->: q $ Deduction
+            | a <- statements env
+            , let as1 :|- q1 = a
+            , q1 == q
+            , S.delete p as1 `S.isSubsetOf` as 
+            ]
+      rs  = [ [a] ==> as :|- p :->: q $ Deduction
+            | a <- statements env
+            , let as1 :|- q1 = a
+            , q1 == q
+            , S.delete p as1 `S.isSubsetOf` as 
+            ]
+   
+      new = mconcat (qs ++ rs)
+      newIsEmpty = null $ proofterms new
 
    trans _ = Nothing
+   
+   
 
 -- bewijs een doel mbv deductiestelling: voeg doel toe en voeg regels  toe aan 
 -- het bewijs, als die er niet al in staan
@@ -218,7 +293,7 @@ deduction = makeRule "deduction" trans
     where
       avp   = assumption p
       newst = addAssumption p (as :|- q)
-   trans _ = Nothing
+   trans _ = Nothing 
 
    
  --       grounded = groundedProof (proof env) 
@@ -229,11 +304,18 @@ elimGoal :: Rule Env
 elimGoal = makeRule "elim-goal" trans
  where
    trans env@(Env ((as :|- p):gls) _)
-      |  reached = Just env { goals = gls }
+      |  reached1 = Just env { goals = gls }
+      |  reached  = Just env {goals = gls
+                            ,proofDag = proofDag env <> newline}
     where
-      reached =
-         let ok2 (bs :|- q) = p == q && bs `S.isSubsetOf` as
+      reached1 =
+         let ok2 (bs :|- q) = p == q && bs == as
          in any ok2 (statements env)
+      reached = any ok2 (statements env)
+      ok2 (bs :|- q) = p == q && bs `S.isSubsetOf` as
+      new =  head $ filter ok2  (statements env)
+      newline = (snd$ findMotivation new (proofDag env)) ==> (as :|- p)  $ (fst $ findMotivation new (proofDag env))
+
    trans _ = Nothing
    
 falseAsGoal :: Rule Env
@@ -306,7 +388,7 @@ contradiction1 = makeRule "contradiction1" trans
       | cond  = Just env
            { goals = st2:gls  
            , proofDag = proofDag env <> mconcat newav
-           }
+           } 
     where         
        cond = (Not p :->: p) `elem` 
           [ consequent st
@@ -490,7 +572,7 @@ contradiction7 :: Rule Env
 contradiction7 = makeRule "contradiction7" trans
  where
   trans env@(Env ((as :|- F):(bs :|- Not p):_) _) 
-      | cond  = Just env
+     | cond  = Just env
            {  goals = [ S.insert (Not (Not p)) bs :|-  q
                       , S.insert (Not (Not p)) bs :|- Not q
                       , bs :|- q :->: Not p
@@ -561,10 +643,10 @@ axiomCheuristic1 :: Rule Env
 axiomCheuristic1 = makeRule "axiomCheuristic1" trans
  where
     trans env@(Env ((as :|- p :->: q):_) _)
-     | cond   = Just env
+     | cond   = env
                 { 
                  proofDag = proofDag env <> newav 
-                }
+                }  `extends` env
      where               
       newav = axiomC2 q p      
       cond = (Not q :->: Not p) `elem` 
@@ -577,7 +659,7 @@ axiomCheuristic1 = makeRule "axiomCheuristic1" trans
 axiomCheuristic2 :: Rule Env
 axiomCheuristic2 = makeRule "axiomCheuristic2" trans
  where
-    trans env@(Env ((_ :|- p :->: q):_) _) 
+    trans env@(Env ((as :|- p :->: q):_) _) 
      | cond   = Just env
                 {
                  proofDag = proofDag env <> newav1 <> newav2 
@@ -585,8 +667,11 @@ axiomCheuristic2 = makeRule "axiomCheuristic2" trans
      where               
       newav1 = axiomC2 q p
       newav2 = axiomA2 (Not p) (Not q)
-      cond = Not p `elem` consequents env
-
+      cond =  (Not p) `elem` 
+         [ consequent st
+         | st <- statements env
+         , S.isSubsetOf (assumptions st) as
+         ]
     trans _ = Nothing    
     
 axiomCheuristic3 :: Rule Env
@@ -667,15 +752,15 @@ substatementInProof x p =
 goalAvailable :: Rule Env
 goalAvailable = makeRule "goalAvailable" trans
  where
-  trans env@(Env gls avail)  
+  {- trans env@(Env gls avail)
     | goalIsAvailable gls avail = Just env {goals = rec gls}
        where
        rec [] = []
        rec [a] = [a]
        rec (a:x:gls1) 
           | substatementInProof x avail = x:gls1 
-          | otherwise = a : rec (x:gls1)
-  trans _ = Nothing   
+          | otherwise = a : rec (x:gls1) -}
+   trans _ = Nothing   
 
 goalIsAvailable :: [Statement] -> ProofDag Axiomatic Statement -> Bool
 goalIsAvailable [] _  = False

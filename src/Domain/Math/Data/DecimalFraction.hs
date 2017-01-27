@@ -46,7 +46,7 @@ instance Fractional DecimalFraction where
 instance SafeDiv DecimalFraction where
    safeDiv (DF a) (DF b) = do
       guard (validDivisor (DF b))
-      liftM DF (a `safeDiv` b)
+      fmap DF (a `safeDiv` b)
 
 instance SafePower DecimalFraction where
    safePower x (DF r)

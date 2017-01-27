@@ -4,7 +4,7 @@ import Data.List
 import Data.Maybe
 import Data.Monoid
 import qualified Data.Set as S
-import Ideas.Common.Utils (ShowString(..))
+import Ideas.Utils.Prelude (ShowString(..))
 import Ideas.Common.Library hiding (label)
 import qualified Ideas.Common.Library as Library
 import Domain.Logic.Formula

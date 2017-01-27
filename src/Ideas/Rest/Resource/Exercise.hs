@@ -7,7 +7,7 @@
 module Ideas.Rest.Resource.Exercise where
 
 import Ideas.Common.Library
-import Ideas.Common.Utils
+import Ideas.Utils.Prelude
 import Ideas.Rest.HTML.Page
 import Data.Aeson.Types
 import Lucid

@@ -38,7 +38,7 @@ import Domain.Math.Expr ()
 import Ideas.Common.Library
 import Ideas.Common.Strategy.Legacy
 import Ideas.Common.Traversal.Navigator
-import Ideas.Common.Utils
+import Ideas.Utils.Prelude
 import Prelude hiding ((<*>))
 
 ctx = currentPair $ fromJust $ (down >=> down) $ inContext proofExercise (snd $ examples proofExercise !! 0)

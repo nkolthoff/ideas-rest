@@ -20,7 +20,6 @@ import Control.Monad
 import Data.Function (on)
 import Data.List
 import Data.Maybe
-import Data.Traversable
 import Domain.Logic.Formula
 import Domain.Logic.Generator (equalLogicA, normalizeLogicA)
 import Domain.Logic.Parser
@@ -32,7 +31,7 @@ import Ideas.Common.Library hiding (singleton)
 import Ideas.Common.Strategy.Legacy
 import Ideas.Common.Rewriting.AC
 import Ideas.Common.Traversal.Navigator
-import Ideas.Common.Utils
+import Ideas.Utils.Prelude
 import Prelude hiding ((<*>))
 
 consequenceExercise :: Exercise Proof

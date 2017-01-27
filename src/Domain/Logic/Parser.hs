@@ -19,9 +19,9 @@ module Domain.Logic.Parser
    ) where
 
 import Domain.Logic.Formula
-import Ideas.Common.Utils (ShowString(..))
-import Ideas.Common.Utils.Uniplate
-import Ideas.Text.Parsing
+import Ideas.Utils.Prelude (ShowString(..))
+import Ideas.Utils.Uniplate
+import Ideas.Utils.Parsing
 import qualified Text.ParserCombinators.Parsec.Token as P
 
 -----------------------------------------------------------

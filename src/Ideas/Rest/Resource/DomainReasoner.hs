@@ -14,7 +14,7 @@ import Servant.Docs
 import Servant
 import Servant.HTML.Lucid
 import Ideas.Service.DomainReasoner
-import Ideas.Common.Utils
+import Ideas.Utils.Prelude
 import Control.Monad
 import Ideas.Rest.HTML.Page
 

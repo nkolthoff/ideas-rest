@@ -2,7 +2,7 @@ module Main (main) where
 
 import qualified Data.Text.IO as T
 import Ideas.Common.Library
-import Ideas.Common.Utils (Some(..))
+import Ideas.Utils.Prelude (Some(..))
 import qualified Domain.Logic as Logic
 import qualified Domain.Logic.Consequence as Logic
 import qualified Domain.Logic.Proofs as Logic

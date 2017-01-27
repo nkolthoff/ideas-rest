@@ -19,14 +19,11 @@ module Domain.Math.Data.OrList
    , oneDisjunct, orListView, orSetView
    ) where
 
-import Control.Applicative
-import Control.Monad (liftM2)
-import Data.Foldable (Foldable, foldMap, toList)
+import Data.Foldable (toList)
 import Data.List
-import Data.Traversable (Traversable, traverse)
 import Domain.Logic.Formula (Logic((:||:)))
-import Ideas.Common.Algebra.Boolean
-import Ideas.Common.Algebra.Group
+import Domain.Algebra.Boolean
+import Domain.Algebra.Group
 import Ideas.Common.Classes
 import Ideas.Common.Rewriting
 import Ideas.Common.View
@@ -42,7 +39,7 @@ instance Foldable OrList where
 
 instance Traversable OrList where
    traverse f (OrList a) =
-      maybe (pure mzero) (liftA toOrList . traverse f) (fromWithZero a)
+      maybe (pure mzero) (fmap toOrList . traverse f) (fromWithZero a)
 
 ------------------------------------------------------------
 -- OrList data type
@@ -120,7 +117,7 @@ orListView = makeView f g
              Logic.Var a -> return (singleton a)
              Logic.T     -> return true
              Logic.F     -> return false
-             a :||: b    -> liftM2 mappend (f a) (f b)
+             a :||: b    -> mappend <$> f a <*> f b
              _           -> Nothing
    g = fromOr . foldOrListWith (Or . Logic.Var)
 

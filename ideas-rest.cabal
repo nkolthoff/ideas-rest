@@ -9,7 +9,7 @@ Executable ideas-rest
   hs-source-dirs:    src
   Build-Depends:     
     base >= 4.2 && < 5,
-    ideas == 1.5,
+    ideas == 1.6,
     containers,
     QuickCheck >= 2.8,
     lucid == 2.9.5,

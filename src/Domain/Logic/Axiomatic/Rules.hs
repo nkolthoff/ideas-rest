@@ -2,14 +2,21 @@
 module Domain.Logic.Axiomatic.Rules 
    ( assumptionId, axiomAId, axiomBId, axiomCId, mpId, dedId
    -- rules 
-   , assumptionR, goalR
-   , axiomAR, axiomBR, axiomCR
+   , assumptionR, assumptionCloseR, goalR, goalR1
+   , axiomAR, axiomBR, axiomCR, axiomACloseR, axiomBCloseR, axiomCCloseR
    , mpForwardR, mpMiddle1R, mpMiddle2R, mpCloseR
    , dedForwardR, dedBackwardR, dedCloseR, renumberR
      -- misc
-   , createGoal, forward, mustHaveParameters
+   , createGoal, forward, createGoal1
+   , nRef, n1Ref, n2Ref, n3Ref
+   , phiRef, psiRef, chiRef
+   , stRef, asRef
+   -- tijdelijk, om buggy rules te testen
+   , assumption, modusPonensForward, exProof
    ) where
 
+import Ideas.Utils.Prelude   
+import Data.Maybe
 import Control.Monad
 import Domain.Logic.Formula
 import Domain.Logic.Parser
@@ -32,17 +39,26 @@ instance Reference SLogic
 logax :: Id
 logax = newId "logic.propositional.axiomatic"
 
-assumptionId :: Id
+assumptionId, assumptionCloseId :: Id
 assumptionId = describe "Introduces an assumption (phi)." $ 
    logax # "assumption"
+assumptionCloseId = describe "Motivates an assumption (as|- phi)." $ 
+   assumptionId # "close"
 
-axiomAId, axiomBId, axiomCId :: Id
+
+axiomAId, axiomBId, axiomCId, axiomACloseId, axiomBCloseId, axiomCCloseId  :: Id
 axiomAId = describe "Introduces an instance of Axiom A (phi, psi)." $ 
    logax # "axiom-a"
 axiomBId = describe "Introduces an instance of Axiom B (phi, psi, chi)." $ 
    logax # "axiom-b"
 axiomCId = describe "Introduces an instance of Axiom C (phi, psi)." $ 
    logax # "axiom-c"   
+axiomACloseId = describe "Motivates an instance of Axiom A (phi, psi)." $ 
+   axiomAId # "close"
+axiomBCloseId = describe "Motivates an instance of Axiom B (phi, psi, chi)." $ 
+   axiomBId # "close"
+axiomCCloseId = describe "Motivates an instance of Axiom C (phi, psi)." $ 
+   axiomCId # "close" 
 
 mpId, mpForwardId, mpMiddle1Id, mpMiddle2Id, mpCloseId :: Id
 mpId = describe "Modus ponens" $ 
@@ -67,74 +83,100 @@ dedCloseId = describe "Deduction rule applied to (phi, As |- psi) and (As |- phi
    dedId # "close" 
 
 goalId :: Id
-goalId = describe "Introduces a new goal." $ 
+goalId = describe "Introduces at line n a new goal st" $ 
    logax # "goal" 
+
+goalId1 :: Id
+goalId1 = describe "Introduces a new goal." $ 
+   logax # "goal1"   
+   
+phiRef, psiRef, chiRef :: Ref SLogic
+phiRef = makeRef "phi"
+psiRef = makeRef "psi"
+chiRef = makeRef "chi"
+
+stRef :: Ref Statement
+stRef = makeRef "st"
+
+asRef :: Ref [SLogic]
+asRef = makeRef "as"
+
+nRef, n1Ref, n2Ref, n3Ref :: Ref Int
+nRef   = makeRef "n"
+n1Ref  = makeRef "n1"
+n2Ref  = makeRef "n2"
+n3Ref  = makeRef "n3"
 
 ----------------------------------------------------------------------
 -- Parameterized rules
 
-mustHaveParameters :: ParamTrans b a -> b -> Transformation a
-mustHaveParameters f b = supplyParameters f (const (Just b))
-
 assumptionR :: Rule (Proof Statement)
-assumptionR = ruleTrans assumptionId $ mustHaveParameters f T
- where
-   f = parameter1 "phi" (transPure . assumption)
+assumptionR = ruleTrans assumptionId $ 
+   transInput1 phiRef $ \x -> Just . assumption x
+   
+assumptionCloseR :: Rule (Proof Statement)
+assumptionCloseR = ruleTrans assumptionCloseId $ 
+   transInput1 nRef assumptionClose
 
 axiomAR :: Rule (Proof Statement)
-axiomAR = ruleTrans axiomAId $ supplyParameters f (\_ -> Just (T, T))
- where
-   f = parameter2 "phi" "psi" $ \x y -> transPure (introAxiomA x y)
+axiomAR = ruleTrans axiomAId $
+   transInput2 phiRef psiRef $ \x y -> Just . introAxiomA x y
+   
+axiomACloseR :: Rule (Proof Statement)
+axiomACloseR = ruleTrans axiomACloseId $
+   transInput1 nRef axiomAClose
 
 axiomBR :: Rule (Proof Statement)
-axiomBR = ruleTrans axiomBId $ mustHaveParameters f (T, T, T)
- where
-   f = parameter3 "phi" "psi" "chi" $ \x y z -> transPure (introAxiomB x y z)
+axiomBR = ruleTrans axiomBId $
+   transInput3 phiRef psiRef chiRef $ \x y z -> Just . introAxiomB x y z
+ 
+axiomBCloseR :: Rule (Proof Statement)
+axiomBCloseR = ruleTrans axiomBCloseId $
+   transInput1 nRef axiomBClose
    
 axiomCR :: Rule (Proof Statement)
-axiomCR = ruleTrans axiomCId $ mustHaveParameters f (T, T)
- where
-   f = parameter2 "phi" "psi" $ \x y -> transPure (introAxiomC x y)
+axiomCR = ruleTrans axiomCId $
+   transInput2 phiRef psiRef $ \x y -> Just . introAxiomC x y
+   
+axiomCCloseR :: Rule (Proof Statement)
+axiomCCloseR = ruleTrans axiomCCloseId $
+   transInput1 nRef axiomCClose
 
 mpForwardR :: Rule (Proof Statement)
-mpForwardR = siblingOf mpId $ ruleTrans mpForwardId $ mustHaveParameters f (0, 0)
- where
-   f = parameter2 "n1" "n2" $ \x y -> makeTrans (modusPonensForward x y)
+mpForwardR = siblingOf mpId $ ruleTrans mpForwardId $
+   transInput2 n1Ref n2Ref modusPonensForward
 
 mpMiddle1R :: Rule (Proof Statement)
-mpMiddle1R = siblingOf mpId $ ruleTrans mpMiddle1Id $ mustHaveParameters f (0, 0)
- where
-   f = parameter2 "n1" "n2" $ \x y -> makeTrans (modusPonensMiddle1 x y)
+mpMiddle1R = siblingOf mpId $ ruleTrans mpMiddle1Id $
+   transInput2 n1Ref n2Ref modusPonensMiddle1
 
 mpMiddle2R :: Rule (Proof Statement)
-mpMiddle2R = siblingOf mpId $ ruleTrans mpMiddle2Id $ mustHaveParameters f (0, 0)
- where
-   f = parameter2 "n1" "n2" $ \x y -> makeTrans (modusPonensMiddle2 x y)
+mpMiddle2R = siblingOf mpId $ ruleTrans mpMiddle2Id $
+   transInput2 n1Ref n2Ref modusPonensMiddle2
 
 mpCloseR :: Rule (Proof Statement)
-mpCloseR = siblingOf mpId $ ruleTrans mpCloseId $ mustHaveParameters f (0, 0, 0)
- where
-   f = parameter3 "n1" "n2" "n3" $ \x y z -> makeTrans (modusPonensClose x y z)
+mpCloseR = siblingOf mpId $ ruleTrans mpCloseId $
+   transInput3 n1Ref n2Ref n3Ref modusPonensClose
 
 dedForwardR :: Rule (Proof Statement)
-dedForwardR = siblingOf dedId $ ruleTrans dedForwardId $ mustHaveParameters f (0, T)
- where
-   f = parameter2 "n" "phi" $ \x y -> makeTrans (deductionForward x y)
+dedForwardR = siblingOf dedId $ ruleTrans dedForwardId $
+   transInput2 nRef phiRef deductionForward
 
 dedBackwardR :: Rule (Proof Statement)
-dedBackwardR = siblingOf dedId $ ruleTrans dedBackwardId $ mustHaveParameters f 0
- where
-   f = parameter1 "n" $ \x -> makeTrans (deductionBackward x)
+dedBackwardR = siblingOf dedId $ ruleTrans dedBackwardId $
+   transInput1 nRef deductionBackward
 
 dedCloseR :: Rule (Proof Statement)
-dedCloseR = siblingOf dedId $ ruleTrans dedCloseId $ mustHaveParameters f (0, 0)
- where
-   f = parameter2 "n1" "n2" $ \x y -> makeTrans (deductionClose x y)
+dedCloseR = siblingOf dedId $ ruleTrans dedCloseId $
+   transInput2 n1Ref n2Ref deductionClose
 
+goalR1 :: Rule (Proof Statement)
+goalR1 = ruleTrans goalId1 $
+   transInput1 stRef createGoal1
+   
 goalR :: Rule (Proof Statement)
-goalR = ruleTrans goalId $ mustHaveParameters f ([] |- T)
- where
-   f = parameter1 "st" $ \x -> transMaybe (createGoal x)
+goalR = ruleTrans goalId $
+   transInput2 nRef stRef createGoal
 
 renumberR :: Rule (Proof Statement)
 renumberR = describe "Renumber proof lines" $
@@ -167,6 +209,47 @@ modusPonensFits st1 st2 st3 =
    fits _ _ _ = False
 -}
 
+assumptionClose :: Int -> Proof Statement -> Maybe (Proof Statement)
+assumptionClose n prf = do
+   st <- findNumber n prf >>= term
+   let as = assumptions st
+       cs = consequent st
+   guard $ cs `S.member` as
+   let  mot = ("assumption", [])
+   return  $ addMotivation n mot prf   
+   
+axiomAClose :: Int -> Proof Statement -> Maybe (Proof Statement)
+axiomAClose n prf = do
+   st <- findNumber n prf >>= term
+   let cs = consequent st      
+   guard $ isAxiom cs 
+   let  mot = ("axiom-a", [])
+   return  $ addMotivation n mot prf  
+ where 
+   isAxiom (p :->: (q :->: r)) = p == r 
+   isAxiom _ = False
+   
+axiomBClose :: Int -> Proof Statement -> Maybe (Proof Statement)
+axiomBClose n prf = do
+   st <- findNumber n prf >>= term
+   let cs = consequent st      
+   guard $ isAxiom cs 
+   let  mot = ("axiom-b", [])
+   return  $ addMotivation n mot prf  
+ where 
+   isAxiom ((p :->: (q :->: r)):->: ((s:->:t) :->: (u :->:v))) = p == s && p == u && q == t && r == v
+   isAxiom _ = False 
+   
+axiomCClose :: Int -> Proof Statement -> Maybe (Proof Statement)
+axiomCClose n prf = do
+   st <- findNumber n prf >>= term
+   let cs = consequent st      
+   guard $ isAxiom cs 
+   let  mot = ("axiom-c", [])
+   return  $ addMotivation n mot prf  
+ where 
+   isAxiom ((p :->:q) :->:  (r :->: s)) = p == (Not s) && q == (Not r)
+   isAxiom _ = False   
 
 modusPonensForward :: Int -> Int -> Proof Statement -> Maybe (Proof Statement)
 modusPonensForward n1 n2 prf = do
@@ -175,7 +258,7 @@ modusPonensForward n1 n2 prf = do
    psi <- fits (consequent st1) (consequent st2)
    let st  = assumptions st1 `S.union` assumptions st2 :|- psi
        mot = (show mpForwardId, [n1, n2])
-   return (forward st mot prf)
+   return (forwardAfter (max n1 n2) st mot prf)
  where
    fits (p :->: q) r | p == r = Just q
    fits p (q :->: r) | p == q = Just r
@@ -201,10 +284,10 @@ modusPonensMiddle1 n m prf = do
    st2 <- findNumber m prf >>= term
    guard  $ (null (label pl)) && ((assumptions st2) `S.isSubsetOf` (assumptions st1))
    let psi = consequent st2 :->: consequent st1
-       n1  = nextNumberDecr prf
+       n1  = prevNumberBefore n prf
        new = goalNr n1 (assumptions st1 :|- psi)
        mot = (show mpMiddle1Id, [n1, m])
-   return $ insert new  $ addMotivation n mot prf
+   return $ new <> addMotivation n mot prf
    
 modusPonensMiddle2 :: Int -> Int -> Proof Statement -> Maybe (Proof Statement)
 modusPonensMiddle2 n m prf = do
@@ -213,10 +296,10 @@ modusPonensMiddle2 n m prf = do
    st2 <- findNumber m prf >>= term
    guard  $ (null (label pl)) && ((assumptions st2) `S.isSubsetOf` (assumptions st1))
    psi <- fits (consequent st1) (consequent st2)
-   let n1 = nextNumberDecr prf
+   let n1 = prevNumberBefore n prf
        new  = goalNr n1 (assumptions st1 :|- psi)
        mot = (show mpMiddle2Id, [n1, m])
-   return $ insert new  $ addMotivation n mot prf 
+   return $ new <> addMotivation n mot prf 
  where
    fits q (p :->: r)  | q == r = Just p
    fits _ _= Nothing
@@ -242,7 +325,7 @@ deductionForward n phi prf = do
    st1 <- findNumber n prf >>= term
    let st  = (phi `S.delete` assumptions st1) :|- (phi :->: consequent st1)
        mot = (show dedForwardId, [n])
-   return (forward st mot prf)
+   return (forwardAfter n st mot prf)
 
 deductionBackward :: Int -> Proof Statement -> Maybe (Proof Statement)
 deductionBackward n prf = do
@@ -250,10 +333,10 @@ deductionBackward n prf = do
    st1 <- term pl
    guard (null (label pl))
    (phi, psi) <- isImpl (consequent st1)
-   let n1  = nextNumberDecr prf
+   let n1  = prevNumberBefore n prf
        new = goalNr n1 (S.insert phi (assumptions st1) :|- psi)
        mot = (show dedBackwardId, [n1])
-   return $ insert new $ addMotivation n mot prf
+   return $ new <> addMotivation n mot prf
  where
    isImpl (p :->: q) = Just (p, q)
    isImpl _ = Nothing
@@ -285,24 +368,28 @@ close n1 n2 prf
    | n1 > n2   = close n2 n1 prf
    | otherwise = Nothing -}
    
-createGoal :: Statement -> Proof Statement -> Maybe (Proof Statement)
-createGoal st prf 
-   | validStatement st = Just (insert (goalNr (nextNumberDecr prf) st) prf)
+createGoal1 :: Statement -> Proof Statement -> Maybe (Proof Statement)
+createGoal1 st prf 
+   | validStatement st = Just $ goalNr (prevNumber prf) st <> prf
    | otherwise = Nothing
 
+createGoal :: Int -> Statement -> Proof Statement -> Maybe (Proof Statement)
+createGoal n st prf 
+   | validStatement st = Just $ goalNr n st <> prf
+   | otherwise = Nothing
 --------------------------------------------------------------------------------
 
 forward :: Statement -> Motivation -> Proof Statement -> Proof Statement
-forward st m prf = insert pl prf
+forward st m prf = pl <> prf
  where
    n  = nextNumber prf
    pl = prooflineNr n st m
-
-insert :: Proof a -> Proof a -> Proof a
-insert prf1 prf2 = makeProof (xs ++ prooflines prf1 ++ ys)
+   
+forwardAfter :: Int -> Statement -> Motivation -> Proof Statement -> Proof Statement
+forwardAfter n1 st m prf = pl <> prf
  where
-   n = maximum (0 : usedNumbers prf1)
-   (xs, ys) = break (maybe False (> n) . number) (prooflines prf2)
+   n  = nextNumberAfter n1 prf
+   pl = prooflineNr n st m
 
 -- follows from deduction
 axiomA :: SLogic -> SLogic -> Statement
@@ -314,10 +401,6 @@ axiomB phi psi chi = S.empty :|- (phi :->: (psi :->: chi)) :->: ((phi :->: psi) 
 
 axiomC :: SLogic -> SLogic -> Statement
 axiomC phi psi = S.empty :|- (Not phi :->: Not psi) :->: (psi :->: phi)
-
-nextNumberDecr :: Proof a -> Int
-nextNumberDecr proof = head (filter (`notElem` usedNumbers proof) [1000, 999 ..])
-
 {-
 nextNumberDecr2 :: Proof a -> (Int, Int)
 nextNumberDecr2 proof = 
@@ -327,7 +410,7 @@ nextNumberDecr2 proof =
 
 main :: IO ()   
 main = print exProof
-
+-}
 exProof :: Proof Statement
 exProof = fromJust (make mempty)
  where
@@ -347,15 +430,17 @@ exProof = fromJust (make mempty)
  --   >=> close 997 3
  -}
  
-       createGoal ([ p:->:p ]|- p:->:p)
-    >=> return.assumption (p :->:p)
-    >=> return.assumption p 
-    >=> modusPonensForward 2 1
-    >=> deductionClose 3 1000
+       createGoal1 ([]|- p:->:p)
+    >=> createGoal 500 ([p, p :->:q ] |- q)  
+  --  >=> return.assumption (p :->:p)
+ --   >=> return.assumption p 
+    >=> deductionBackward 1000
+  --  >=> modusPonensForward 2 1
+  --  >=> mpCloseBug1 3 1000
        
    p = Var (ShowString "p")
    q = Var (ShowString "q")
    r = Var (ShowString "r")
-
+{-
 go :: (Proof Statement)
 go = fromJust $ fromJSON (toJSON exProof) -}

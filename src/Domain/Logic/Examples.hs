@@ -19,7 +19,7 @@ module Domain.Logic.Examples
 
 import Domain.Logic.Formula
 import Ideas.Common.Exercise
-import Ideas.Common.Utils (ShowString(..))
+import Ideas.Utils.Prelude (ShowString(..))
 
 dnfExamples :: Examples SLogic
 dnfExamples =

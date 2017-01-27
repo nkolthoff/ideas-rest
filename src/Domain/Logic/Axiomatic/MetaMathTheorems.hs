@@ -13,7 +13,7 @@ import Domain.Logic.Axiomatic.WithoutDeduction
 import Domain.Logic.Axiomatic.Statement
 import Domain.Logic.Axiomatic.Examples
 import Ideas.Common.Library hiding (label)
-import Ideas.Common.Utils (ShowString(..))
+import Ideas.Utils.Prelude (ShowString(..))
 --import Ideas.Encoding.Encoder
 import qualified Data.Set as S
 --import Ideas.Text.JSON

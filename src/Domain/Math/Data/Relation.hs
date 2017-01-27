@@ -27,12 +27,9 @@ module Domain.Math.Data.Relation
    , Inequality(..), inequalityView
    ) where
 
-import Control.Applicative
 import Control.Monad
-import Data.Foldable (Foldable, foldMap, toList)
+import Data.Foldable (toList)
 import Data.Maybe
-import Data.Monoid
-import Data.Traversable (Traversable, sequenceA)
 import Ideas.Common.Rewriting
 import Ideas.Common.View
 import Ideas.Text.OpenMath.Dictionary.Relation1

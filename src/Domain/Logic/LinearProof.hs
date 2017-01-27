@@ -7,10 +7,10 @@ module Domain.Logic.LinearProof
      -- Constructors
    , makeProof
    , goal, goalNr, proofline, prooflineNr
-   , addAssumption, addProofline, addProoflineNr, merge
+   , addAssumption, addProofline, addProoflineNr, merge, safeMerge
    , addMotivation
      -- Numbering
-   , usedNumbers, nextNumber
+   , usedNumbers, nextNumber, nextNumberAfter, prevNumber, prevNumberBefore
      -- Checks
    , checkLabels, checkOrder
      -- Transformations
@@ -24,6 +24,7 @@ import Data.Maybe
 import Data.Monoid
 import Ideas.Common.Rewriting.Term
 import Ideas.Text.JSON
+import Ideas.Text.Latex
 
 data Proof a = P { prooflines :: [Proofline a] }
  deriving Eq
@@ -82,8 +83,8 @@ instance Functor Proofline where
    fmap f s = s { term = fmap f (term s) }
 
 instance Monoid (Proof a) where
-   mempty = P []
-   mappend (P xs) (P ys) = P (xs ++ ys)
+   mempty  = P []
+   mappend = merge
 
 instance Show a => Show (Proof a) where
    show = unlines . map show . prooflines
@@ -121,14 +122,6 @@ proofSymbol, prooflineSymbol :: Symbol
 proofSymbol     = newSymbol "proof"
 prooflineSymbol = newSymbol "proofline"
 
-instance IsTerm a => IsTerm (Maybe a) where
-   toTerm = maybe (symbol nothingSymbol) toTerm
-   fromTerm (TCon s []) | s == nothingSymbol = return Nothing
-   fromTerm t = liftM Just (fromTerm t) 
-
-nothingSymbol :: Symbol
-nothingSymbol = newSymbol "Nothing"
-
 instance IsTerm a => IsTerm (Proof a) where
    toTerm = function proofSymbol . map toTerm . prooflines
    fromTerm (TCon s xs) | s == proofSymbol = 
@@ -147,13 +140,34 @@ instance IsTerm a => IsTerm (Proofline a) where
       return (PL nr t lab is)
    fromTerm _ = fail "fromTerm proofline"
 
+instance ToLatex a => ToLatex (Proof a) where
+   toLatex = toLatex . prooflines
+
+instance ToLatex a => ToLatex (Proofline a) where
+   toLatex x = toLatexList [x]
+   toLatexList = array "rll" . map f
+    where
+      f pl = [numberTex (number pl), toLatex (term pl), motTex (motivation pl)]
+
+      numberTex = toLatex . fmap ((++ ".") . show)
+      motTex (s, is) = commas (toLatex s : map toLatex is)
+
 usedNumbers :: Proof a -> [Int]
 usedNumbers = nub . concatMap f . prooflines
  where
    f s = maybe id (:) (number s) (references s)
 
 nextNumber :: Proof a -> Int
-nextNumber proof = head (filter (`notElem` usedNumbers proof) [1..])
+nextNumber = nextNumberAfter 0
+
+nextNumberAfter :: Int -> Proof a -> Int
+nextNumberAfter n p = head (filter (`notElem` usedNumbers p) [n+1 ..])
+
+prevNumber :: Proof a -> Int
+prevNumber = prevNumberBefore 1001
+
+prevNumberBefore :: Int -> Proof a -> Int
+prevNumberBefore n p = head (filter (`notElem` usedNumbers p) [n-1, n-2 ..])
 
 getProofline :: Proof a -> Int -> Maybe (Proofline a)
 getProofline proof n =
@@ -211,9 +225,24 @@ autonumberWith ns0 proof = proof { prooflines = rec ns (prooflines proof) }
    rec _ [] = []
    rec [] _ = error "out of numbers"
 
--- merge proofs; renumber the second part, where necessary
+
+-- merge two proofs: there should not be an overlap in line numbers
 merge :: Proof a -> Proof a -> Proof a
-merge p1 p2 = p1 <> renumberWith f p2
+merge p1 p2 = P (rec (prooflines p1) (prooflines p2))
+ where
+   rec [] ys = ys
+   rec xs [] = xs
+   rec (x:xs) (y:ys) =
+      case (number x, number y) of 
+         (Nothing, _)   -> x : rec xs (y:ys)
+         (_, Nothing)   -> y : rec (x:xs) ys
+         (Just i, Just j)
+            | i <= j    -> x : rec xs (y:ys)
+            | otherwise -> y : rec (x:xs) ys
+
+-- merge proofs; renumber the second part, where necessary
+safeMerge :: Proof a -> Proof a -> Proof a
+safeMerge p1 p2 = p1 <> renumberWith f p2
  where
    used1 = usedNumbers p1
    used2 = usedNumbers p2

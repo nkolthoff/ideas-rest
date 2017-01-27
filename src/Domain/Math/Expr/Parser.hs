@@ -28,7 +28,7 @@ import Domain.Math.Data.WithBool
 import Domain.Math.Expr.Data
 import Domain.Math.Expr.Symbols
 import Ideas.Common.Library hiding (many, many1, try, ors, choice)
-import Ideas.Text.Parsing
+import Ideas.Utils.Parsing
 import Prelude hiding ((^))
 import qualified Text.ParserCombinators.Parsec.Token as P
 
@@ -202,8 +202,8 @@ parens = P.parens lexer
 -- Argument descriptor (for parameterized rules)
 
 instance Read Expr where
-   readsPrec _ input =
-      case parseExpr input of
+   readsPrec _ txt =
+      case parseExpr txt of
          Left _  -> []
          Right a -> [(a, "")]
 

@@ -19,16 +19,13 @@ module Domain.Math.Data.Polynomial
    , testPolynomials
    ) where
 
-import Control.Applicative (Applicative, (<$>), liftA)
 import Control.Monad
 import Data.Char
-import Data.Foldable (Foldable, foldMap)
 import Data.Ratio
-import Data.Traversable (Traversable, sequenceA)
 import Domain.Math.Data.Primes
 import Domain.Math.Safe
 import Ideas.Common.Classes
-import Ideas.Common.Utils.TestSuite
+import Ideas.Utils.TestSuite
 import Test.QuickCheck
 import qualified Data.IntMap as IM
 import qualified Data.IntSet as IS
@@ -66,7 +63,7 @@ instance (Eq a,Num a) => Eq (Polynomial a) where
 instance (Eq a,Show a,Num a) => Show (Polynomial a) where
    show p
       | p ==0     = "f(x) = 0"
-      | otherwise = "f(x) = " ++ fix (concatMap f (reverse (IM.toList (unP p))))
+      | otherwise = "f(x) = " ++ fixString (concatMap f (reverse (IM.toList (unP p))))
     where
       f (n, a) = sign (one (show a ++ g n))
       g n = concat $ [ "x" | n > 0 ] ++ [ '^' : show n | n > 1 ]
@@ -75,10 +72,11 @@ instance (Eq a,Show a,Num a) => Show (Polynomial a) where
       one xs                   = xs
       sign ('-':xs) = " - " ++ xs
       sign xs       = " + " ++ xs
-      fix xs = case dropWhile isSpace xs of
-                  '+':ys -> dropWhile isSpace ys
-                  '-':ys -> '-':dropWhile isSpace ys
-                  ys     -> ys
+      fixString xs = 
+         case dropWhile isSpace xs of
+            '+':ys -> dropWhile isSpace ys
+            '-':ys -> '-':dropWhile isSpace ys
+            ys     -> ys
 
 instance (Eq a,Fractional a) => SafeDiv (Polynomial a) where
    -- polynomial division, no remainder
@@ -98,7 +96,7 @@ instance Foldable Polynomial where
    foldMap f = foldMap f . unsafeP
 
 instance Traversable Polynomial where
-   sequenceA = liftA P . sequenceIntMap . unsafeP
+   sequenceA = fmap P . sequenceIntMap . unsafeP
 
 instance (Eq a,Num a) => Num (Polynomial a) where
    p1 + p2 = makeP $ IM.unionWith (+) (unP p1) (unP p2)
@@ -118,7 +116,7 @@ instance (Eq a,Arbitrary a, Num a) => Arbitrary (Polynomial a) where
    arbitrary = do
       d <- choose (0, 5)
       let f n x = con x * var ^ n
-      liftM (sum . zipWith f [0::Int ..]) (vector (d+1))
+      sum . zipWith f [0::Int ..] <$> vector (d+1)
 
 -------------------------------------------------------------------
 -- Functions on polynomials

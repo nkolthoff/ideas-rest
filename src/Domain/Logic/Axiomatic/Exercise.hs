@@ -1,24 +1,23 @@
 module Domain.Logic.Axiomatic.Exercise (logaxExercise) where
 
 import Data.Char
-import Data.Function
 import Data.Maybe
-import Domain.Logic.Formula
 import Domain.Logic.Parser
 import Domain.Logic.LinearProof
 import Domain.Logic.Axiomatic.Statement
 import Domain.Logic.Axiomatic.Examples
 import Domain.Logic.Axiomatic.Rules
-import Domain.Logic.Axiomatic.BuggyRules
-import Domain.Logic.ProofDAG (strategyGenerator, makeGoal)
-import Domain.Logic.Axiomatic.ProofGeneratorDAG (axiomaticStrategy, Env(..), makeEnv)
+import Domain.Logic.Axiomatic.BuggyRules hiding (exProof)
+import Domain.Logic.ProofDAG (strategyGenerator, makeGoal, trimProofDag, ProofDag)
+import Domain.Logic.Axiomatic.ProofGeneratorDAG (axiomaticDagExercise,axiomaticStrategy, Env(..), makeEnv, makeEnvWithDag, Axiomatic)
+import Domain.Logic.ProofDAG
 import Ideas.Common.Library hiding (label, lastTerm)
 import Ideas.Encoding.Encoder
 import qualified Data.Set as S
 import qualified Ideas.Common.Library as Ideas
 
 logaxExercise :: Exercise (Proof Statement)
-logaxExercise = latexEncoding $ jsonEncoding emptyExercise
+logaxExercise = latexEncoding $ checkEnv $ jsonEncoding emptyExercise
    { exerciseId     = describe "Axiomatic proofs" $ 
                       newId "logic.propositional.logax"
    , status         = Experimental
@@ -31,27 +30,64 @@ logaxExercise = latexEncoding $ jsonEncoding emptyExercise
    , hasTermView    = Just termView
    , strategy       = Ideas.label "logic.propositional.logax" (liftToContext logaxStrategy)
    , extraRules     = map liftToContext $
-                         [ assumptionR
-                         , axiomAR, axiomBR, axiomCR
+                         [ assumptionR, assumptionCloseR
+                         , axiomAR, axiomBR, axiomCR,axiomACloseR, axiomBCloseR, axiomCCloseR
                          , mpForwardR, mpMiddle1R, mpMiddle2R, mpCloseR
                          , dedForwardR, dedBackwardR, dedCloseR
-                         , goalR, renumberR
+                         , goalR, renumberR, goalR1
                          ] ++ buggyRules 
+   , ruleOrdering   = ruleOrderingWith buggyRules
    , examples       = [ (dif, p) 
                       | (dif, st) <- exampleList ++ mmExampleList
-                      , p <- maybeToList (createGoal st mempty)
+                      , p <- maybeToList (createGoal1 st mempty)
                       ]
    }
+
+checkEnv :: Exercise a -> Exercise a 
+checkEnv = setProperty "environment-check" check
+ where
+   check :: Environment -> Maybe String
+   check env = listToMaybe $ 
+      mapMaybe isLogic ["phi", "psi", "chi"] ++ mapMaybe isStatement ["st"]
+    where
+      isLogic     = checkWith parseLogicPars
+      isStatement = checkWith (parseStatement False)
+
+      checkWith :: (String -> Either String a) -> String -> Maybe String
+      checkWith parseFun var = do
+         txt <- makeRef var ? env
+         case parseFun txt of
+            Left msg -> Just $ "Syntax " ++ var ++ ": " ++ msg -- report the syntax error
+            Right _  -> Nothing
 
 logaxStrategy :: Strategy (Proof Statement)
 logaxStrategy = dynamic "logic.propositional.logax.generator" logaxStrategyGen
 
 logaxStrategyGen :: Proof Statement -> Strategy (Proof Statement)
-logaxStrategyGen p = strategyGenerator dag
+logaxStrategyGen p = -- error $ show $ trimProofDag dag
+   -- error $ showDerivation axiomaticDagExercise env
+   strategyGenerator (trimProofDag dag)
  where
-   goal = fromJust $ term $ last $ prooflines p
-   env  = makeEnv goal
-   dag = proofDag (applyD axiomaticStrategy env) <> makeGoal goal
+   goals = mapMaybe term $ prooflines $ unGroundedProof p
+   env   = makeEnvWithDag (proofToDag p) goals
+   dag   = proofDag (applyD axiomaticStrategy env) <> makeGoals goals
+   
+{- mijn alternatief:     goals = mapMaybe term (filter unmotivated (prooflines p))
+   unmotivated pl = 
+      case (number pl, term pl) of
+         (Just i, Just _) -> null (label pl) 
+         _ -> False
+-}         
+
+unGroundedProof :: Proof a -> Proof a
+unGroundedProof = makeProof . dropWhile motivated . prooflines
+  where
+    motivated pl = not (null (label pl)) 
+
+proofToDag :: Proof Statement -> ProofDag Axiomatic Statement
+proofToDag p = relabel readM (makeDag goals p)
+ where
+   goals = [] -- should be empty; goals are maintained in the environment ??
 
 parseProof :: String -> Either String (Proof Statement)
 parseProof s = 
@@ -74,7 +110,12 @@ parseProofline s =
                (Left err, _) -> Left err
                (_, Left err) -> Left err
                (Right (ps, q), Right mot) -> Right $ prooflineNr (read nr) (ps |- q) mot
-      _ -> Left "not a proofline"
+      _ -> -- use 1000 as default number
+         let (s2, s3) = break (== '[') s 
+         in case (parseStatement False s2, parseMotivation s3) of
+               (Left err, _) -> Left err
+               (_, Left err) -> Left err
+               (Right (ps, q), Right mot) -> Right $ prooflineNr 1000 (ps |- q) mot
 
 parseMotivation :: String -> Either String Motivation
 parseMotivation s =
@@ -139,4 +180,6 @@ similarStatement st1 st2 =
    -- context van het bewijs).
    xs = assumptions st1 `S.intersection` assumptions st2
 
-see n = printDerivation logaxExercise (fromJust (createGoal (snd (exampleList !! n)) mempty))
+see n = printDerivation logaxExercise (fromJust (createGoal1 (snd (exampleList !! n)) mempty))
+
+seedag n = printDerivation logaxExercise exProof

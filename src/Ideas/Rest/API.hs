@@ -11,7 +11,7 @@ import Data.IORef
 import Servant
 import Ideas.Common.Library
 import Ideas.Service.DomainReasoner
-import Ideas.Common.Utils
+import Ideas.Utils.Prelude
 import Ideas.Service.State
 import Ideas.Service.BasicServices (solution)
 import Ideas.Rest.Links

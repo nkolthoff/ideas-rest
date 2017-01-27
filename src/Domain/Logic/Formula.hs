@@ -13,20 +13,21 @@
 --  $Id: Formula.hs 9195 2016-04-06 09:45:09Z bastiaan $
 
 module Domain.Logic.Formula
-   ( module Domain.Logic.Formula, module Ideas.Common.Algebra.Boolean
+   ( module Domain.Logic.Formula, module Domain.Algebra.Boolean
    ) where
 
 import Control.Applicative
 import Control.Monad
 import Data.Foldable (toList)
 import Data.List
+import Data.Traversable (fmapDefault, foldMapDefault)
 import Data.Typeable
-import Ideas.Common.Algebra.Boolean
+import Domain.Algebra.Boolean
 import Ideas.Common.Classes
-import Ideas.Common.Rewriting
-import Ideas.Common.Utils (ShowString, subsets)
-import Ideas.Common.Utils.Uniplate
-import qualified Data.Traversable as T
+import Ideas.Common.Rewriting hiding (trueSymbol, falseSymbol)
+import Ideas.Utils.Prelude (ShowString, subsets)
+import Ideas.Utils.Uniplate
+import Ideas.Text.Latex
 import qualified Ideas.Text.OpenMath.Dictionary.Logic1 as OM
 
 infixr 2 :<->:
@@ -54,12 +55,12 @@ instance Show a => Show (Logic a) where
    showList = (++) . intercalate ", " . map show 
 
 instance Functor Logic where
-   fmap = T.fmapDefault
+   fmap = fmapDefault
 
 instance Foldable Logic where
-   foldMap = T.foldMapDefault
+   foldMap = foldMapDefault
 
-instance T.Traversable Logic where
+instance Traversable Logic where
    traverse f = foldLogic
       ( fmap Var . f, liftA2 (:->:), liftA2 (:<->:), liftA2 (:&&:)
       , liftA2 (:||:), liftA Not, pure T, pure F
@@ -89,6 +90,17 @@ instance Container Logic where
    singleton            = Var
    getSingleton (Var a) = Just a
    getSingleton _       = Nothing
+
+instance ToLatex a => ToLatex (Logic a) where
+   toLatexPrec = flip (foldLogic alg)
+    where
+      alg = ( pp, binopN 3 "rightarrow", binopN 0 "leftrightarrow", binopA 2 "wedge"
+            , binopA 1 "vee", nott, pp "T", pp "F")
+      binopA prio op p q n = parIf (n > prio) (p prio <> command op <> q prio)
+      binopN prio op p q n = parIf (n > prio) (p (prio+1) <> command op <> q (prio + 1))
+      pp s      = const (toLatex s)
+      nott p _  = command "neg" <> p 4
+      parIf b   = if b then parens else id
 
 -- | The type LogicAlg is the algebra for the data type Logic
 -- | Used in the fold for Logic.

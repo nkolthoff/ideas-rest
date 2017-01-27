@@ -18,14 +18,12 @@ module Domain.Math.Data.WithBool
    ( WithBool, fromWithBool, join
    ) where
 
-import Control.Applicative
 import Control.Monad
 import Data.Char (toLower)
-import Data.Foldable
-import Data.Traversable
+import Data.Traversable (foldMapDefault)
 import Domain.Logic.Formula
 import Ideas.Common.Classes
-import Ideas.Common.Rewriting
+import Ideas.Common.Rewriting hiding (trueSymbol, falseSymbol)
 import Test.QuickCheck
 
 -------------------------------------------------------------------
@@ -69,4 +67,4 @@ instance IsTerm a => IsTerm (WithBool a) where
    fromTerm term
       | isSymbol trueSymbol  term = return true
       | isSymbol falseSymbol term = return false
-      | otherwise                 = liftM singleton (fromTerm term)
+      | otherwise                 = singleton <$> fromTerm term

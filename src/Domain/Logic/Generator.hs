@@ -23,8 +23,8 @@ import Data.Function
 import Data.List
 import Domain.Logic.Formula
 import Ideas.Common.Exercise
-import Ideas.Common.Utils (ShowString(..))
-import Ideas.Common.Utils.Uniplate
+import Ideas.Utils.Prelude (ShowString(..))
+import Ideas.Utils.Uniplate
 import Test.QuickCheck
 
 -------------------------------------------------------------
